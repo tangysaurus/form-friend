@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,10 @@ const AICoachDemo = ({ onBack }: { onBack: () => void }) => {
   const [formScore, setFormScore] = useState(85);
   const [reps, setReps] = useState(0);
   const [feedback, setFeedback] = useState("Keep your core tight!");
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const exercises = ["Push-ups", "Squats", "Planks", "Lunges"];
   const feedbackMessages = [
@@ -22,9 +26,44 @@ const AICoachDemo = ({ onBack }: { onBack: () => void }) => {
     "Excellent technique!"
   ];
 
+  // Initialize camera when component mounts
+  useEffect(() => {
+    initializeCamera();
+    return () => {
+      // Cleanup camera stream when component unmounts
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  // Update video element when camera stream changes
+  useEffect(() => {
+    if (videoRef.current && cameraStream) {
+      videoRef.current.srcObject = cameraStream;
+    }
+  }, [cameraStream]);
+
+  const initializeCamera = async () => {
+    try {
+      setCameraError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 640 }, 
+          height: { ideal: 480 },
+          facingMode: 'user' 
+        } 
+      });
+      setCameraStream(stream);
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      setCameraError('Unable to access camera. Please ensure camera permissions are granted.');
+    }
+  };
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isRecording) {
+    if (isRecording && cameraStream) {
       interval = setInterval(() => {
         // Simulate changing form score and feedback
         setFormScore(Math.floor(Math.random() * 30) + 70);
@@ -37,9 +76,13 @@ const AICoachDemo = ({ onBack }: { onBack: () => void }) => {
       }, 2000);
     }
     return () => clearInterval(interval);
-  }, [isRecording]);
+  }, [isRecording, cameraStream]);
 
   const toggleRecording = () => {
+    if (!cameraStream) {
+      initializeCamera();
+      return;
+    }
     setIsRecording(!isRecording);
   };
 
@@ -77,28 +120,51 @@ const AICoachDemo = ({ onBack }: { onBack: () => void }) => {
           <Card className="bg-black/50 backdrop-blur-sm border-gray-700">
             <CardContent className="p-6">
               <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg flex items-center justify-center relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10"></div>
-                
-                {/* Simulated camera feed */}
-                <div className="text-center z-10">
-                  <Camera className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-400 text-lg">
-                    {isRecording ? "AI is analyzing your form..." : "Camera ready"}
-                  </p>
-                </div>
-
-                {/* Recording indicator */}
-                {isRecording && (
-                  <div className="absolute top-4 right-4 flex items-center gap-2">
-                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                    <span className="text-red-500 font-medium">LIVE</span>
+                {cameraError ? (
+                  <div className="text-center z-10">
+                    <Camera className="w-16 h-16 text-red-400 mx-auto mb-4" />
+                    <p className="text-red-400 text-lg mb-4">{cameraError}</p>
+                    <Button
+                      onClick={initializeCamera}
+                      className="bg-blue-500 hover:bg-blue-600 text-white"
+                    >
+                      Retry Camera Access
+                    </Button>
                   </div>
-                )}
+                ) : cameraStream ? (
+                  <>
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                    
+                    {/* Recording indicator */}
+                    {isRecording && (
+                      <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/50 px-3 py-1 rounded-full">
+                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                        <span className="text-red-500 font-medium">LIVE</span>
+                      </div>
+                    )}
 
-                {/* Skeleton pose overlay */}
-                {isRecording && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-32 h-48 border-2 border-cyan-400 rounded-lg opacity-50 animate-pulse"></div>
+                    {/* AI Analysis overlay */}
+                    {isRecording && (
+                      <div className="absolute inset-0 pointer-events-none">
+                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                          <div className="w-32 h-48 border-2 border-cyan-400 rounded-lg opacity-70 animate-pulse"></div>
+                        </div>
+                        <div className="absolute bottom-4 left-4 bg-black/70 text-cyan-400 px-3 py-1 rounded text-sm">
+                          AI Analyzing Form...
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center z-10">
+                    <Camera className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-400 text-lg">Loading camera...</p>
                   </div>
                 )}
               </div>
@@ -106,11 +172,12 @@ const AICoachDemo = ({ onBack }: { onBack: () => void }) => {
               <div className="flex justify-center gap-4 mt-6">
                 <Button
                   onClick={toggleRecording}
+                  disabled={!cameraStream}
                   className={`px-8 py-3 rounded-full font-semibold transition-all duration-300 ${
                     isRecording 
                       ? "bg-red-500 hover:bg-red-600 text-white" 
                       : "bg-green-500 hover:bg-green-600 text-white"
-                  }`}
+                  } ${!cameraStream ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   {isRecording ? (
                     <>
