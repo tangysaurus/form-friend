@@ -541,7 +541,7 @@ const AICoachDemo = () => {
         />
 
         <DemoVideo
-          key = {selectedExercise}
+          key={selectedExercise}
           autoPlay
           loop
           muted
