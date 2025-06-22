@@ -23,6 +23,20 @@ type squatAnalysis = {
   backBarData: { value: number; ideal: number; range: number } | null;
 };
 
+type situpAnalysis = {
+  torsoAngle: number;
+  hipAngle: number;
+  shoulderLifted: boolean;
+  symmetryIssue: boolean;
+
+  torsoFeedback: string;
+  hipFeedback: string;
+
+  torsoBarData: { value: number; ideal: number; range: number } | null;
+  hipBarData: { value: number; ideal: number; range: number } | null;
+};
+
+
 
 // Layout containers
 const PageLayout = styled.div`
@@ -156,13 +170,19 @@ const DETECTION_AND_UI_UPDATE_INTERVAL_MS = 500; // Update every 0.5 seconds
 
 // Ideal angle definitions
 const IDEAL_ANGLES = {
-  knee: 70,
-  hip: 70,
-  back: 15,
+  "Squat": {
+    knee: 70,
+    hip: 70,
+    back: 15,
+  },
+  "Sit-up": {
+    torso: 45,
+    hip: 90,
+  },
 };
 
 // Range within which the bar appears (15 degrees either side of ideal)
-const DISPLAY_RANGE_DEGREES = 360;
+const DISPLAY_RANGE_DEGREES = 100;
 const EXCELLENT_RANGE_DEGREES = 15; // Within 5 degrees for "Excellent" feedback
 
 const AICoachDemo = () => {
@@ -173,6 +193,7 @@ const AICoachDemo = () => {
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [selectedExercise, setSelectedExercise] = useState("Squat");
   const [squatMetrics, setSquatMetrics] = useState<squatAnalysis | null>(null);
+  const [situpMetrics, setSitupMetrics] = useState<situpAnalysis | null>(null);
 
   const angleBuffers = useRef<BufferedAngles>({
     knee: [],
@@ -267,13 +288,13 @@ const AICoachDemo = () => {
 
         // Generate feedback and bar data for each angle
         const { feedback: kneeFeedback, barData: kneeBarData } = getAngleFeedbackAndBarData(
-          averagedKnee, IDEAL_ANGLES.knee, DISPLAY_RANGE_DEGREES, EXCELLENT_RANGE_DEGREES, 'knee'
+          averagedKnee, IDEAL_ANGLES["Squat"].knee, DISPLAY_RANGE_DEGREES, EXCELLENT_RANGE_DEGREES, 'knee'
         );
         const { feedback: hipFeedback, barData: hipBarData } = getAngleFeedbackAndBarData(
-          averagedHip, IDEAL_ANGLES.hip, DISPLAY_RANGE_DEGREES, EXCELLENT_RANGE_DEGREES, 'hip'
+          averagedHip, IDEAL_ANGLES["Squat"].hip, DISPLAY_RANGE_DEGREES, EXCELLENT_RANGE_DEGREES, 'hip'
         );
         const { feedback: backFeedback, barData: backBarData } = getAngleFeedbackAndBarData(
-          averagedBack, IDEAL_ANGLES.back, DISPLAY_RANGE_DEGREES, EXCELLENT_RANGE_DEGREES, 'back'
+          averagedBack, IDEAL_ANGLES["Squat"].back, DISPLAY_RANGE_DEGREES, EXCELLENT_RANGE_DEGREES, 'back'
         );
 
         setSquatMetrics({
@@ -290,7 +311,35 @@ const AICoachDemo = () => {
           hipBarData,
           backBarData,
         });
+      } else if (selectedExercise === "Sit-up") {
+          const rawSitupMetrics = analyzeSitupPose(keypoints);
+
+          // Buffer torso and hip angles
+          updateAngleBuffer(angleBuffers.current.back, rawSitupMetrics.torsoAngle); // reuse 'back' buffer for torso
+          updateAngleBuffer(angleBuffers.current.hip, rawSitupMetrics.hipAngle);
+
+          const averagedTorso = parseFloat(getAverage(angleBuffers.current.back).toFixed(1));
+          const averagedHip = parseFloat(getAverage(angleBuffers.current.hip).toFixed(1));
+
+          const { feedback: torsoFeedback, barData: torsoBarData } = getAngleFeedbackAndBarData(
+            averagedTorso, IDEAL_ANGLES["Sit-up"].torso, DISPLAY_RANGE_DEGREES, EXCELLENT_RANGE_DEGREES, 'back'
+          );
+          const { feedback: hipFeedback, barData: hipBarData } = getAngleFeedbackAndBarData(
+            averagedHip, IDEAL_ANGLES["Sit-up"].hip, DISPLAY_RANGE_DEGREES, EXCELLENT_RANGE_DEGREES, 'hip'
+          );
+
+          setSitupMetrics({
+            ...rawSitupMetrics,
+            torsoAngle: averagedTorso,
+            hipAngle: averagedHip,
+            torsoFeedback,
+            hipFeedback,
+            torsoBarData,
+            hipBarData,
+          });
+          setSquatMetrics(null);
       } else {
+        setSitupMetrics(null);
         setSquatMetrics(null);
         angleBuffers.current = { knee: [], hip: [], back: [] };
       }
@@ -474,6 +523,57 @@ const AICoachDemo = () => {
     };
   };
 
+  const analyzeSitupPose = (keypoints: poseDetection.Keypoint[]): situpAnalysis => {
+    const get = (i: number) => keypoints[i];
+
+    const leftShoulder = get(5);
+    const rightShoulder = get(6);
+    const leftHip = get(11);
+    const rightHip = get(12);
+    const leftKnee = get(13);
+    const rightKnee = get(14);
+
+    // Torso vector: hip to shoulder (avg)
+    const midShoulder = {
+      x: (leftShoulder.x + rightShoulder.x) / 2,
+      y: (leftShoulder.y + rightShoulder.y) / 2,
+    };
+    const midHip = {
+      x: (leftHip.x + rightHip.x) / 2,
+      y: (leftHip.y + rightHip.y) / 2,
+    };
+    const vertical = { x: 0, y: 1 };
+
+    const torsoAngle = getAngle({ x: 0, y: 0 }, vertical, {
+      x: midShoulder.x - midHip.x,
+      y: midShoulder.y - midHip.y,
+    });
+
+    // Hip angle: torso to knee
+    const leftHipAngle = getAngle(leftShoulder, leftHip, leftKnee);
+    const rightHipAngle = getAngle(rightShoulder, rightHip, rightKnee);
+    const hipAngle = (leftHipAngle + rightHipAngle) / 2;
+
+    // Detect shoulder lift (for sit-up phase detection)
+    const shouldersRaised = midShoulder.y < midHip.y - 50; // tweak threshold as needed
+
+    // Symmetry
+    const symmetryDiff = Math.abs(leftHipAngle - rightHipAngle);
+    const symmetryIssue = symmetryDiff > 15;
+
+    return {
+      torsoAngle,
+      hipAngle,
+      shoulderLifted: shouldersRaised,
+      symmetryIssue,
+
+      torsoFeedback: "",
+      hipFeedback: "",
+
+      torsoBarData: null,
+      hipBarData: null,
+    };
+  };
 
   return (
     <PageLayout>
@@ -508,9 +608,9 @@ const AICoachDemo = () => {
                   <FeedbackBarFill
                     $position={squatMetrics.kneeBarData.value}
                     $color={
-                      Math.abs(squatMetrics.leftKneeAngle - IDEAL_ANGLES.knee) <= EXCELLENT_RANGE_DEGREES
+                      Math.abs(squatMetrics.leftKneeAngle - IDEAL_ANGLES["Squat"].knee) <= EXCELLENT_RANGE_DEGREES
                         ? '#4CAF50' // Green for excellent
-                        : Math.abs(squatMetrics.leftKneeAngle - IDEAL_ANGLES.knee) <= DISPLAY_RANGE_DEGREES
+                        : Math.abs(squatMetrics.leftKneeAngle - IDEAL_ANGLES["Squat"].knee) <= DISPLAY_RANGE_DEGREES
                         ? '#ffc107' // Orange for good range
                         : '#f44336' // Red for outside range (though bar only shows within range)
                     }
@@ -531,9 +631,9 @@ const AICoachDemo = () => {
                   <FeedbackBarFill
                     $position={squatMetrics.hipBarData.value}
                     $color={
-                      Math.abs(squatMetrics.leftHipAngle - IDEAL_ANGLES.hip) <= EXCELLENT_RANGE_DEGREES
+                      Math.abs(squatMetrics.leftHipAngle - IDEAL_ANGLES["Squat"].hip) <= EXCELLENT_RANGE_DEGREES
                         ? '#4CAF50'
-                        : Math.abs(squatMetrics.leftHipAngle - IDEAL_ANGLES.hip) <= DISPLAY_RANGE_DEGREES
+                        : Math.abs(squatMetrics.leftHipAngle - IDEAL_ANGLES["Squat"].hip) <= DISPLAY_RANGE_DEGREES
                         ? '#ffc107'
                         : '#f44336'
                     }
@@ -554,9 +654,9 @@ const AICoachDemo = () => {
                   <FeedbackBarFill
                     $position={squatMetrics.backBarData.value}
                     $color={
-                      Math.abs(squatMetrics.backAngle - IDEAL_ANGLES.back) <= EXCELLENT_RANGE_DEGREES
+                      Math.abs(squatMetrics.backAngle - IDEAL_ANGLES["Squat"].back) <= EXCELLENT_RANGE_DEGREES
                         ? '#4CAF50'
-                        : Math.abs(squatMetrics.backAngle - IDEAL_ANGLES.back) <= DISPLAY_RANGE_DEGREES
+                        : Math.abs(squatMetrics.backAngle - IDEAL_ANGLES["Squat"].back) <= DISPLAY_RANGE_DEGREES
                         ? '#ffc107'
                         : '#f44336'
                     }
@@ -567,6 +667,56 @@ const AICoachDemo = () => {
             </AngleItem>
           </AngleDisplayContainer>
         )}
+        {/* selected exercise is sit-up */}
+        {selectedExercise === "Sit-up" && situpMetrics && (
+        <AngleDisplayContainer>
+          <AngleItem>
+            <AngleLabelValue>
+              <span>Torso Angle:</span>
+              <span>{situpMetrics.torsoAngle}°</span>
+            </AngleLabelValue>
+            {situpMetrics.torsoBarData && (
+              <FeedbackBarWrapper>
+                <FeedbackBarIdealLine />
+                <FeedbackBarFill
+                  $position={situpMetrics.torsoBarData.value}
+                  $color={
+                    Math.abs(situpMetrics.torsoAngle - IDEAL_ANGLES["Sit-up"].torso) <= EXCELLENT_RANGE_DEGREES
+                      ? '#4CAF50'
+                      : Math.abs(situpMetrics.torsoAngle - IDEAL_ANGLES["Sit-up"].torso) <= DISPLAY_RANGE_DEGREES
+                      ? '#ffc107'
+                      : '#f44336'
+                  }
+                />
+              </FeedbackBarWrapper>
+            )}
+            <FeedbackText>{situpMetrics.torsoFeedback}</FeedbackText>
+          </AngleItem>
+
+          <AngleItem>
+            <AngleLabelValue>
+              <span>Hip Angle:</span>
+              <span>{situpMetrics.hipAngle}°</span>
+            </AngleLabelValue>
+            {situpMetrics.hipBarData && (
+              <FeedbackBarWrapper>
+                <FeedbackBarIdealLine />
+                <FeedbackBarFill
+                  $position={situpMetrics.hipBarData.value}
+                  $color={
+                    Math.abs(situpMetrics.hipAngle - IDEAL_ANGLES["Sit-up"].hip) <= EXCELLENT_RANGE_DEGREES
+                      ? '#4CAF50'
+                      : Math.abs(situpMetrics.hipAngle - IDEAL_ANGLES["Sit-up"].hip) <= DISPLAY_RANGE_DEGREES
+                      ? '#ffc107'
+                      : '#f44336'
+                  }
+                />
+              </FeedbackBarWrapper>
+            )}
+            <FeedbackText>{situpMetrics.hipFeedback}</FeedbackText>
+          </AngleItem>
+        </AngleDisplayContainer>
+      )}
       </ControlPanel>
     </PageLayout>
   );
