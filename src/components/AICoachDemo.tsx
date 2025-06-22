@@ -264,6 +264,50 @@ const FeedbackBarIdealLine = styled.div`
   z-index: 1;
 `;
 
+const DemoVideoContainer = styled.div`
+  margin-top: 20px;
+  width: 100%;
+`;
+
+const DemoVideo = styled.video`
+  width: 100%;
+  max-height: 360px;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+`;
+
+const demoVideos: Record<string, string> = {
+  "Squat": "/squat_animation.mp4",
+  "Push-up": "/pushup_animation.mp4",
+  "Plank": "/plank_animation.mp4",
+  "Shoulder Press": "/shoulderpress_animation.mp4"
+  // ...
+};
+
+const ViewToggleContainer = styled.div`
+  display: flex;
+  border: 2px solid #ccc;
+  border-radius: 12px;
+  overflow: hidden;
+  width: fit-content;
+  margin-bottom: 20px;
+`;
+
+const ViewOption = styled.button<{ active: boolean }>`
+  padding: 10px 20px;
+  border: none;
+  background: ${({ active }) => (active ? "#4caf50" : "#f0f0f0")};
+  color: ${({ active }) => (active ? "white" : "#333")};
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s ease;
+
+  &:hover {
+    background: ${({ active }) => (active ? "#43a047" : "#e0e0e0")};
+  }
+`;
+
+
 // --- MODIFIED: BufferedAngles type ---
 type BufferedAngles = {
   knee: number[]; hip: number[]; back: number[];
@@ -321,6 +365,8 @@ const AICoachDemo = () => {
   const [shoulderPressMetrics, setShoulderPressMetrics] = useState<shoulderPressAnalysis | null>(null);
   // --- NEW: State for Good Morning metrics ---
   const [goodMorningMetrics, setGoodMorningMetrics] = useState<goodMorningAnalysis | null>(null);
+
+  const [viewMode, setViewMode] = useState<"camera" | "demo">("camera");
 
 
   // --- MODIFIED: Update angle buffers ---
@@ -474,10 +520,45 @@ const AICoachDemo = () => {
   return (
     <PageLayout>
       <CameraWrapper>
-        <WebcamVideo ref={videoRef} autoPlay muted playsInline />
-        <WebcamCanvas ref={canvasRef} />
+        <WebcamVideo
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          style={{ display: viewMode === "camera" ? "block" : "none" }}
+        />
+        <WebcamCanvas
+          ref={canvasRef}
+          style={{ display: viewMode === "camera" ? "block" : "none" }}
+        />
+
+        <DemoVideo
+          key = {selectedExercise}
+          autoPlay
+          loop
+          muted
+          playsInline
+          style={{ display: viewMode === "demo" ? "block" : "none" }}
+        >
+          <source src={demoVideos[selectedExercise]} type="video/mp4" />
+          Your browser does not support the video tag.
+        </DemoVideo>
       </CameraWrapper>
       <ControlPanel>
+        <ViewToggleContainer>
+          <ViewOption
+            active={viewMode === "camera"}
+            onClick={() => setViewMode("camera")}
+          >
+            Camera
+          </ViewOption>
+          <ViewOption
+            active={viewMode === "demo"}
+            onClick={() => setViewMode("demo")}
+          >
+            Demo
+          </ViewOption>
+        </ViewToggleContainer>
         <Label>
           Select Exercise:
           <Select
