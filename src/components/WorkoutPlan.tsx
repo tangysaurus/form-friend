@@ -175,25 +175,6 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
                     </div>
                 )}
 
-                {/* Quick Start for AI Coach */}
-                <Card className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-0 shadow-2xl mb-8">
-                    <CardContent className="p-8 text-center">
-                        <Zap className="w-12 h-12 mx-auto mb-4" />
-                        <h2 className="text-3xl font-bold mb-4">Jump Straight to AI Training</h2>
-                        <p className="text-xl mb-6 opacity-90">
-                            Skip the plan and start working out with real-time AI form feedback right now
-                        </p>
-                        <Button
-                            onClick={onStartWorkout}
-                            size="lg"
-                            className="bg-white text-cyan-600 hover:bg-gray-100 font-semibold px-8 py-4 rounded-full text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-                        >
-                            <Camera className="w-5 h-5 mr-2" />
-                            Start AI Training Now
-                        </Button>
-                    </CardContent>
-                </Card>
-
                 {loading && (
                     <div className="text-center text-xl text-gray-700 mb-8">
                         Generating your personalized workout plan...
