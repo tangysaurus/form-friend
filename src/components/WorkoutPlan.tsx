@@ -234,7 +234,7 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
                 <Card className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-0 shadow-2xl mb-8">
                     <CardContent className="p-8 text-center">
                         <Camera className="w-12 h-12 mx-auto mb-4" />
-                        <h2 className="text-3xl font-bold mb-4">Ready to Start with AI Form Tracking?</h2>
+                        <h2 className="text-3xl font-bold mb-4">Ready to Start with AI Form Coach?</h2>
                         <p className="text-xl mb-6 opacity-90">
                             Your AI coach will watch your form in real-time and provide instant feedback to perfect your technique
                         </p>

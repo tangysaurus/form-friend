@@ -18,7 +18,7 @@ const Hero = ({ onGetStarted }: { onGetStarted: () => void }) => {
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400"> Coach</span>
           </h1>
           <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
-            Experience the future of fitness with AI-powered form tracking. 
+            Experience the future of fitness with your AI-powered form coach. 
             Get real-time feedback on your exercise technique and personalized workout plans.
           </p>
         </div>
