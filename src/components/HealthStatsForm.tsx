@@ -4,24 +4,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Scale, Ruler, HeartPulse, SkipForward, Info } from "lucide-react"; // Import HeartPulse for medical conditions
+import { User, Scale, Ruler, HeartPulse, SkipForward, Info, Smile } from "lucide-react"; // UPDATED: Added Smile icon
 
+// UPDATED: Added 'name' to the interface
 interface HealthStats {
+  name: string;
   age: string;
-  weight: string; // Consider making this a number for better data typing if converting to kg later
-  height: string; // Consider making this a number for better data typing if converting to cm later
+  weight: string;
+  height: string;
   gender: string;
-  medicalConditions: string; // New field for medical conditions/injuries
-  // Removed fitnessLevel from here as it's now in GoalsForm
+  medicalConditions: string;
 }
 
 const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats | null) => void }) => {
+  // UPDATED: Initialize 'name' in the state
   const [stats, setStats] = useState<HealthStats>({
+    name: "",
     age: "",
     weight: "",
     height: "",
     gender: "",
-    medicalConditions: "", // Initialize new field
+    medicalConditions: "",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -48,6 +51,23 @@ const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats | null) => vo
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+
+            {/* ADDED: Name Input Field */}
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <Smile className="w-4 h-4" />
+                First Name
+              </Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="e.g., Jane"
+                value={stats.name}
+                onChange={(e) => setStats({ ...stats, name: e.target.value })}
+                className="h-12 border-2 border-gray-200 focus:border-blue-500 transition-colors"
+              />
+            </div>
+
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="age" className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -59,14 +79,14 @@ const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats | null) => vo
                   type="number"
                   placeholder="25"
                   value={stats.age}
-                  onChange={(e) => setStats({...stats, age: e.target.value})}
+                  onChange={(e) => setStats({ ...stats, age: e.target.value })}
                   className="h-12 border-2 border-gray-200 focus:border-blue-500 transition-colors"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="gender" className="text-sm font-medium text-gray-700">Gender</Label>
-                <Select onValueChange={(value) => setStats({...stats, gender: value})} value={stats.gender}>
+                <Select onValueChange={(value) => setStats({ ...stats, gender: value })} value={stats.gender}>
                   <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-blue-500">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
@@ -90,7 +110,7 @@ const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats | null) => vo
                   type="number"
                   placeholder="150"
                   value={stats.weight}
-                  onChange={(e) => setStats({...stats, weight: e.target.value})}
+                  onChange={(e) => setStats({ ...stats, weight: e.target.value })}
                   className="h-12 border-2 border-gray-200 focus:border-blue-500 transition-colors"
                 />
               </div>
@@ -105,13 +125,12 @@ const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats | null) => vo
                   type="number"
                   placeholder="68"
                   value={stats.height}
-                  onChange={(e) => setStats({...stats, height: e.target.value})}
+                  onChange={(e) => setStats({ ...stats, height: e.target.value })}
                   className="h-12 border-2 border-gray-200 focus:border-blue-500 transition-colors"
                 />
               </div>
             </div>
 
-            {/* New: Medical Conditions/Injuries */}
             <div className="space-y-2">
               <Label htmlFor="medicalConditions" className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <HeartPulse className="w-4 h-4" />
@@ -120,9 +139,9 @@ const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats | null) => vo
               <Input
                 id="medicalConditions"
                 type="text"
-                placeholder="e.g., knee pain, lower back issues, high blood pressure"
+                placeholder="e.g., knee pain, lower back issues"
                 value={stats.medicalConditions}
-                onChange={(e) => setStats({...stats, medicalConditions: e.target.value})}
+                onChange={(e) => setStats({ ...stats, medicalConditions: e.target.value })}
                 className="h-12 border-2 border-gray-200 focus:border-blue-500 transition-colors"
               />
               <p className="text-xs text-gray-500 flex items-center gap-1">
