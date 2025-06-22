@@ -9,25 +9,29 @@ import { Target, Calendar, Dumbbell, SkipForward, HardHat } from "lucide-react";
 
 interface Goals {
     primaryGoal: string;
-    targetWeight: string; // Keep as string for form input
-    workoutFrequency: string;
+    targetWeight?: string;
+    workoutFrequency?: string;
     muscleGroups: string[];
-    timeframe: string;
+    timeframe?: string;
     fitnessLevel: string;
-    availableEquipment: string;
+    availableEquipment?: string;
 }
 
-// onComplete now takes Goals (which might be null if skipped)
 const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }) => {
     const [goals, setGoals] = useState<Goals>({
         primaryGoal: "",
-        targetWeight: "",
         workoutFrequency: "",
-        muscleGroups: [],
-        timeframe: "",
         fitnessLevel: "",
-        availableEquipment: "",
+        muscleGroups: [],
+        targetWeight: undefined,
+        timeframe: undefined,
+        availableEquipment: undefined,
     });
+
+    const [errors, setErrors] = useState<{
+        primaryGoal?: string;
+        fitnessLevel?: string;
+    }>({});
 
     const muscleGroupOptions = [
         "Chest", "Back", "Shoulders", "Arms", "Core", "Legs", "Glutes", "Full Body"
@@ -41,17 +45,39 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
         }
     };
 
+    const validateForm = () => {
+        const newErrors: typeof errors = {};
+
+        if (!goals.primaryGoal || goals.primaryGoal.trim() === "") {
+            newErrors.primaryGoal = "Primary Goal is required.";
+        }
+        if (!goals.fitnessLevel || goals.fitnessLevel.trim() === "") {
+            newErrors.fitnessLevel = "Fitness Level is required.";
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onComplete(goals); // Pass the collected goals to the parent (App.tsx)
+        if (validateForm()) {
+            const submittedGoals: Goals = {
+                ...goals,
+                targetWeight: goals.targetWeight || undefined,
+                workoutFrequency: goals.workoutFrequency || undefined,
+                timeframe: goals.timeframe || undefined,
+                availableEquipment: goals.availableEquipment || undefined,
+            };
+            onComplete(submittedGoals);
+        }
     };
 
     const handleSkip = () => {
-        onComplete(null); // Pass null to indicate skipping
+        onComplete(null);
     };
 
-    // The isValid check can be adjusted based on which fields you consider truly mandatory
-    const isValid = goals.primaryGoal && goals.workoutFrequency && goals.fitnessLevel && goals.timeframe;
+    const canSubmit = goals.primaryGoal.trim() !== "" && goals.fitnessLevel.trim() !== "";
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center p-6">
@@ -61,18 +87,33 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
                         <Target className="w-8 h-8 text-white" />
                     </div>
                     <CardTitle className="text-3xl font-bold text-gray-800">What are your goals?</CardTitle>
+                    {/* ORIGINAL CardDescription */}
                     <CardDescription className="text-lg text-gray-600">
-                        Let's create a workout plan that matches your aspirations (all fields optional)
+                        Let's create a workout plan that matches your aspirations
                     </CardDescription>
+                    {/* NEW PARAGRAPH FOR MANDATORY MESSAGE */}
+                    <p className="text-lg text-red-500 mt-2">
+                        * Primary Goal and Fitness Level are mandatory.
+                    </p>
                 </CardHeader>
 
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-8">
                         <div className="grid md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium text-gray-700">Primary Goal</Label>
-                                <Select onValueChange={(value) => setGoals({...goals, primaryGoal: value})} value={goals.primaryGoal}>
-                                    <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-purple-500">
+                                {/* PRIMARY GOAL - MANDATORY */}
+                                <Label className="text-sm font-medium text-gray-700">
+                                    Primary Goal <span className="text-red-500">*</span>
+                                </Label>
+                                <Select
+                                    onValueChange={(value) => {
+                                        setGoals(prev => ({...prev, primaryGoal: value}));
+                                        setErrors(prev => ({...prev, primaryGoal: undefined}));
+                                    }}
+                                    value={goals.primaryGoal}
+                                    onOpenChange={(open) => { if (!open) validateForm(); }}
+                                >
+                                    <SelectTrigger className={`h-12 border-2 ${errors.primaryGoal ? 'border-red-500' : 'border-gray-200'} focus:border-purple-500`}>
                                         <SelectValue placeholder="Choose your main goal" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -84,6 +125,7 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
                                         <SelectItem value="general-fitness">General Fitness</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                {errors.primaryGoal && <p className="text-red-500 text-xs">{errors.primaryGoal}</p>}
                             </div>
 
                             <div className="space-y-2">
@@ -94,7 +136,7 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
                                     id="targetWeight"
                                     type="number"
                                     placeholder="Goal weight"
-                                    value={goals.targetWeight}
+                                    value={goals.targetWeight || ''}
                                     onChange={(e) => setGoals({...goals, targetWeight: e.target.value})}
                                     className="h-12 border-2 border-gray-200 focus:border-purple-500 transition-colors"
                                 />
@@ -103,11 +145,14 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
 
                         <div className="grid md:grid-cols-2 gap-6">
                             <div className="space-y-2">
+                                {/* WORKOUT FREQUENCY - OPTIONAL */}
                                 <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                                     <Calendar className="w-4 h-4" />
-                                    Workout Frequency
+                                    Workout Frequency (Optional)
                                 </Label>
-                                <Select onValueChange={(value) => setGoals({...goals, workoutFrequency: value})} value={goals.workoutFrequency}>
+                                <Select onValueChange={(value) => {
+                                    setGoals({...goals, workoutFrequency: value});
+                                }} value={goals.workoutFrequency || ''}>
                                     <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-purple-500">
                                         <SelectValue placeholder="How often will you train?" />
                                     </SelectTrigger>
@@ -122,9 +167,19 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
                             </div>
 
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium text-gray-700">Your Current Fitness Level</Label>
-                                <Select onValueChange={(value) => setGoals({...goals, fitnessLevel: value})} value={goals.fitnessLevel}>
-                                    <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-purple-500">
+                                {/* FITNESS LEVEL - MANDATORY */}
+                                <Label className="text-sm font-medium text-gray-700">
+                                    Your Current Fitness Level <span className="text-red-500">*</span>
+                                </Label>
+                                <Select
+                                    onValueChange={(value) => {
+                                        setGoals(prev => ({...prev, fitnessLevel: value}));
+                                        setErrors(prev => ({...prev, fitnessLevel: undefined}));
+                                    }}
+                                    value={goals.fitnessLevel}
+                                    onOpenChange={(open) => { if (!open) validateForm(); }}
+                                >
+                                    <SelectTrigger className={`h-12 border-2 ${errors.fitnessLevel ? 'border-red-500' : 'border-gray-200'} focus:border-purple-500`}>
                                         <SelectValue placeholder="Select your level" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -133,15 +188,16 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
                                         <SelectItem value="advanced">Advanced</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                {errors.fitnessLevel && <p className="text-red-500 text-xs">{errors.fitnessLevel}</p>}
                             </div>
                         </div>
 
                         <div className="space-y-2">
                             <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                                <HardHat className="w-4 h-4" />
-                                Available Equipment
+                                <Dumbbell className="w-4 h-4" />
+                                Available Equipment (Optional)
                             </Label>
-                            <Select onValueChange={(value) => setGoals({...goals, availableEquipment: value})} value={goals.availableEquipment}>
+                            <Select onValueChange={(value) => setGoals({...goals, availableEquipment: value})} value={goals.availableEquipment || ''}>
                                 <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-purple-500">
                                     <SelectValue placeholder="What equipment do you have access to?" />
                                 </SelectTrigger>
@@ -157,8 +213,13 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-sm font-medium text-gray-700">Timeframe</Label>
-                            <Select onValueChange={(value) => setGoals({...goals, timeframe: value})} value={goals.timeframe}>
+                            {/* TIMEFRAME - OPTIONAL */}
+                            <Label className="text-sm font-medium text-gray-700">
+                                Timeframe (Optional)
+                            </Label>
+                            <Select onValueChange={(value) => {
+                                setGoals({...goals, timeframe: value});
+                            }} value={goals.timeframe || ''}>
                                 <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-purple-500">
                                     <SelectValue placeholder="When do you want to achieve this?" />
                                 </SelectTrigger>
@@ -175,7 +236,7 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
                         <div className="space-y-4">
                             <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                                 <Dumbbell className="w-4 h-4" />
-                                Focus Areas (Select all that apply)
+                                Focus Areas (Select all that apply) - Optional
                             </Label>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 {muscleGroupOptions.map((muscleGroup) => (
@@ -197,8 +258,7 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
                         <div className="flex gap-4">
                             <Button
                                 type="submit"
-                                // Disabled if not valid (optional, based on your isValid logic)
-                                // disabled={!isValid}
+                                disabled={!canSubmit}
                                 className="flex-1 h-12 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-xl transition-all duration-300 hover:scale-105"
                             >
                                 Generate My Workout Plan
