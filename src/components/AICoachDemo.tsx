@@ -4,15 +4,8 @@ import "@tensorflow/tfjs-backend-webgl";
 import * as tf from "@tensorflow/tfjs";
 import styled from "styled-components";
 
-// define squatAnalysis type
-type SquatComponentScores = {
-  kneeDepth: number;
-  hipDepth: number;
-  backPosture: number;
-  symmetry: number;
-  hipBend: number;
-};
 
+// Define simplified squat analysis type
 type squatAnalysis = {
   leftKneeAngle: number;
   rightKneeAngle: number;
@@ -21,16 +14,20 @@ type squatAnalysis = {
   backAngle: number;
   depthBelowParallel: boolean;
   symmetryIssue: boolean;
-  feedback: string[];
-  componentScores: SquatComponentScores;
-  totalScore: number;
+  // New fields for feedback and bar data
+  kneeFeedback: string;
+  hipFeedback: string;
+  backFeedback: string;
+  kneeBarData: { value: number; ideal: number; range: number } | null;
+  hipBarData: { value: number; ideal: number; range: number } | null;
+  backBarData: { value: number; ideal: number; range: number } | null;
 };
 
 
 // Layout containers
 const PageLayout = styled.div`
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   padding: 20px;
   gap: 24px;
 `;
@@ -56,11 +53,12 @@ const WebcamCanvas = styled.canvas`
   pointer-events: none;
 `;
 
-// Dropdown controls
+// Dropdown controls and display for angles
 const ControlPanel = styled.div`
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 15px;
 `;
 
 const Label = styled.label`
@@ -74,52 +72,127 @@ const Select = styled.select`
   border-radius: 6px;
 `;
 
-// Score bar styles
-const ScoreBarContainer = styled.div`
+const AngleDisplayContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 25px; /* Increased gap for bars */
   margin-top: 20px;
-  width: 100%;
-  max-width: 200px;
+  font-size: 1.2em;
 `;
 
-const ScoreLabel = styled.div`
+const AngleItem = styled.div`
+  background-color: #f0f0f0;
+  padding: 10px 15px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column; /* Stack label, value, bar, and feedback */
+  gap: 8px;
+  width: 300px; /* Give it a fixed width */
+`;
+
+const AngleLabelValue = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-weight: bold;
-  margin-bottom: 6px;
 `;
 
-const ScoreBarBackground = styled.div`
+const FeedbackText = styled.div`
+  font-size: 0.9em;
+  color: #333;
+  min-height: 1.2em; /* Ensure consistent height */
+`;
+
+// New Styled Component for the Feedback Bar
+const FeedbackBarWrapper = styled.div`
   width: 100%;
   height: 20px;
-  background: #ddd;
+  background: #ccc;
   border-radius: 10px;
+  position: relative;
+  overflow: hidden; /* Ensure bar fill stays within bounds */
 `;
 
-const MAX_SCORES: Record<keyof SquatComponentScores, number> = {
-  kneeDepth: 30,
-  hipDepth: 25,
-  backPosture: 20,
-  symmetry: 15,
-  hipBend: 10,
+interface FeedbackBarFillProps {
+  $position: number; // 0 (far left) to 1 (far right)
+  $color: string;
+}
+
+const FeedbackBarFill = styled.div<FeedbackBarFillProps>`
+  position: absolute;
+  top: 0;
+  left: ${({ $position }) => `${$position * 100}%`}; /* Center based on position */
+  transform: translateX(-50%); /* Adjust to truly center */
+  width: 10px; /* Thickness of the indicator line */
+  height: 100%;
+  background-color: ${({ $color }) => $color};
+  border-radius: 10px;
+  transition: left 0.2s ease-out; /* Smooth movement */
+`;
+
+const FeedbackBarIdealLine = styled.div`
+  position: absolute;
+  left: 50%; /* Middle of the bar */
+  top: 0;
+  width: 2px; /* Thickness of the ideal line */
+  height: 100%;
+  background-color: #4CAF50; /* Green for ideal */
+  z-index: 1; /* Make sure it's on top */
+`;
+
+
+// Define a type for the buffered angles
+type BufferedAngles = {
+  knee: number[];
+  hip: number[];
+  back: number[];
 };
 
-const ScoreBarFill = styled.div<{ score: number; max: number }>`
-  height: 100%;
-  background: ${({ score, max }) =>
-    score / max > 0.8 ? "#4caf50" :
-    score / max > 0.5 ? "#ffc107" :
-    "#f44336"};
-  width: ${({ score, max }) => `${(score / max) * 100}%`};
-  border-radius: 8px;
-  transition: width 0.3s ease;
-`;
+// Define the buffer size (how many past frames to average)
+const ANGLE_BUFFER_SIZE = 5;
+
+// Define the UI update interval in milliseconds
+const DETECTION_AND_UI_UPDATE_INTERVAL_MS = 500; // Update every 0.5 seconds
+
+// Ideal angle definitions
+const IDEAL_ANGLES = {
+  knee: 70,
+  hip: 70,
+  back: 15,
+};
+
+// Range within which the bar appears (15 degrees either side of ideal)
+const DISPLAY_RANGE_DEGREES = 360;
+const EXCELLENT_RANGE_DEGREES = 15; // Within 5 degrees for "Excellent" feedback
 
 const AICoachDemo = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detectorRef = useRef<poseDetection.PoseDetector | null>(null);
-  const animationFrameIdRef = useRef<number | null>(null);
+  const detectionIntervalIdRef = useRef<NodeJS.Timeout | null>(null);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
-  const [selectedExercise, setSelectedExercise] = useState("Push-up");
+  const [selectedExercise, setSelectedExercise] = useState("Squat");
   const [squatMetrics, setSquatMetrics] = useState<squatAnalysis | null>(null);
+
+  const angleBuffers = useRef<BufferedAngles>({
+    knee: [],
+    hip: [],
+    back: [],
+  });
+
+
+  const updateAngleBuffer = (buffer: number[], newValue: number) => {
+    buffer.push(newValue);
+    if (buffer.length > ANGLE_BUFFER_SIZE) {
+      buffer.shift();
+    }
+  };
+
+  const getAverage = (buffer: number[]) => {
+    if (buffer.length === 0) return 0;
+    const sum = buffer.reduce((acc, val) => acc + val, 0);
+    return sum / buffer.length;
+  };
 
 
   const drawKeypoints = (
@@ -158,6 +231,73 @@ const AICoachDemo = () => {
     });
   };
 
+  const performDetectionAndUpdateUI = async () => {
+    if (!videoRef.current || !canvasRef.current || !detectorRef.current) {
+      console.warn("Video, canvas, or detector not ready for detection.");
+      return;
+    }
+
+    const poses = await detectorRef.current.estimatePoses(videoRef.current, {
+      flipHorizontal: true,
+    });
+
+    const ctx = canvasRef.current.getContext("2d");
+    if (!ctx) {
+      console.warn("Canvas context not available.");
+      return;
+    }
+
+    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+
+    if (poses.length > 0) {
+      const keypoints = poses[0].keypoints;
+      drawKeypoints(keypoints, ctx);
+      drawSkeleton(keypoints, ctx);
+
+      if (selectedExercise === "Squat") {
+        const rawSquatMetrics = analyzeSquatPose(keypoints);
+
+        updateAngleBuffer(angleBuffers.current.knee, rawSquatMetrics.leftKneeAngle);
+        updateAngleBuffer(angleBuffers.current.hip, rawSquatMetrics.leftHipAngle);
+        updateAngleBuffer(angleBuffers.current.back, rawSquatMetrics.backAngle);
+
+        const averagedKnee = parseFloat(getAverage(angleBuffers.current.knee).toFixed(1));
+        const averagedHip = parseFloat(getAverage(angleBuffers.current.hip).toFixed(1));
+        const averagedBack = parseFloat(getAverage(angleBuffers.current.back).toFixed(1));
+
+        // Generate feedback and bar data for each angle
+        const { feedback: kneeFeedback, barData: kneeBarData } = getAngleFeedbackAndBarData(
+          averagedKnee, IDEAL_ANGLES.knee, DISPLAY_RANGE_DEGREES, EXCELLENT_RANGE_DEGREES, 'knee'
+        );
+        const { feedback: hipFeedback, barData: hipBarData } = getAngleFeedbackAndBarData(
+          averagedHip, IDEAL_ANGLES.hip, DISPLAY_RANGE_DEGREES, EXCELLENT_RANGE_DEGREES, 'hip'
+        );
+        const { feedback: backFeedback, barData: backBarData } = getAngleFeedbackAndBarData(
+          averagedBack, IDEAL_ANGLES.back, DISPLAY_RANGE_DEGREES, EXCELLENT_RANGE_DEGREES, 'back'
+        );
+
+        setSquatMetrics({
+          ...rawSquatMetrics,
+          leftKneeAngle: averagedKnee,
+          rightKneeAngle: averagedKnee, // Display average for simplicity
+          leftHipAngle: averagedHip,
+          rightHipAngle: averagedHip, // Display average for simplicity
+          backAngle: averagedBack,
+          kneeFeedback,
+          hipFeedback,
+          backFeedback,
+          kneeBarData,
+          hipBarData,
+          backBarData,
+        });
+      } else {
+        setSquatMetrics(null);
+        angleBuffers.current = { knee: [], hip: [], back: [] };
+      }
+    }
+  };
+
+
   useEffect(() => {
     const loadModelAndStart = async () => {
       await tf.setBackend("webgl");
@@ -176,9 +316,6 @@ const AICoachDemo = () => {
     loadModelAndStart();
 
     return () => {
-      if (animationFrameIdRef.current) {
-        cancelAnimationFrame(animationFrameIdRef.current);
-      }
       if (videoRef.current) {
         videoRef.current.pause();
         videoRef.current.srcObject = null;
@@ -186,7 +323,12 @@ const AICoachDemo = () => {
       if (mediaStream) {
         mediaStream.getTracks().forEach((track) => track.stop());
       }
-      detectorRef.current?.dispose();
+      if (detectorRef.current) {
+        detectorRef.current.dispose();
+      }
+      if (detectionIntervalIdRef.current) {
+        clearInterval(detectionIntervalIdRef.current);
+      }
     };
   }, []);
 
@@ -203,53 +345,21 @@ const AICoachDemo = () => {
         }
 
         setMediaStream(stream);
-        runPoseDetection();
+
+        if (detectionIntervalIdRef.current) {
+          clearInterval(detectionIntervalIdRef.current);
+        }
+        detectionIntervalIdRef.current = setInterval(
+          performDetectionAndUpdateUI,
+          DETECTION_AND_UI_UPDATE_INTERVAL_MS
+        );
+
       }
     } catch (error) {
       console.error("Error accessing webcam", error);
     }
   };
 
-  const runPoseDetection = () => {
-    const detect = async () => {
-      if (!videoRef.current || !canvasRef.current || !detectorRef.current) return;
-
-      const poses = await detectorRef.current.estimatePoses(videoRef.current, {
-        flipHorizontal: true,
-      });
-
-      const ctx = canvasRef.current.getContext("2d");
-      if (!ctx) return;
-
-      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-
-      if (poses.length > 0) {
-        const keypoints = poses[0].keypoints;
-        drawKeypoints(keypoints, ctx);
-        drawSkeleton(keypoints, ctx);
-        setSquatMetrics(analyzeSquatPose(keypoints));
-      }
-
-      animationFrameIdRef.current = requestAnimationFrame(detect);
-    };
-
-    detect();
-  };
-
-  // landmark indices for each body part
-  const landmarkMap = {
-    nose: 0,
-    leftEye: 1,
-    rightEye: 2,
-    leftShoulder: 5,
-    rightShoulder: 6,
-    leftHip: 11,
-    rightHip: 12,
-    leftKnee: 13,
-    rightKnee: 14,
-    leftAnkle: 15,
-    rightAnkle: 16,
-  };
 
   // calculate angle between 3 joints
   function getAngle(a: poseDetection.Keypoint, b: poseDetection.Keypoint, c: poseDetection.Keypoint) {
@@ -260,24 +370,60 @@ const AICoachDemo = () => {
     const magAB = Math.sqrt(ab.x ** 2 + ab.y ** 2);
     const magCB = Math.sqrt(cb.x ** 2 + cb.y ** 2);
 
-    const angleRad = Math.acos(dot / (magAB * magCB));
+    let angleRad = Math.acos(dot / (magAB * magCB));
+    if (isNaN(angleRad)) {
+        const clampedDotProductDivisor = Math.max(-1, Math.min(1, dot / (magAB * magCB)));
+        angleRad = Math.acos(clampedDotProductDivisor);
+    }
+
     const angleDeg = (angleRad * 180) / Math.PI;
 
     return angleDeg;
   }
 
-  const scoreFromRange = (
-    value: number,
-    idealMin: number,
-    idealMax: number,
-    maxScore: number,
-    reverse = false
-  ): number => {
-      const clamped = Math.max(Math.min(value, idealMax), idealMin);
-      const ratio = (clamped - idealMin) / (idealMax - idealMin);
-      const score = reverse ? (1 - ratio) * maxScore : ratio * maxScore;
-      return Math.round(score);
-    };
+  // New helper function to get feedback and bar data
+  const getAngleFeedbackAndBarData = (
+    currentAngle: number,
+    idealAngle: number,
+    displayRange: number,
+    excellentRange: number,
+    angleType: 'knee' | 'hip' | 'back'
+  ) => {
+    let feedback = "";
+    let barData: { value: number; ideal: number; range: number } | null = null;
+    const deviation = currentAngle - idealAngle;
+
+    if (Math.abs(deviation) <= displayRange) {
+      // Calculate position for the bar
+      const minVal = idealAngle - displayRange;
+      const maxVal = idealAngle + displayRange;
+      const normalizedValue = (currentAngle - minVal) / (maxVal - minVal); // 0 to 1 scale
+      barData = { value: normalizedValue, ideal: 0.5, range: 1 }; // value is normalized position, ideal is center (0.5)
+
+      if (Math.abs(deviation) <= excellentRange) {
+        feedback = "Excellent!";
+      } else if (deviation > excellentRange) {
+        if (angleType === 'knee') {
+          feedback = "Squat deeper.";
+        } else if (angleType === 'hip') {
+          feedback = "Lean less forward with hips."; // "hips: if higher than ideal, it'll say something about leaning less forward"
+        } else if (angleType === 'back') {
+          feedback = "Keep your back more upright."; // "back tilt: if higher than ideal, it'll say something about looking up straight."
+        }
+      } else { // deviation < -excellentRange
+        if (angleType === 'knee') {
+          feedback = "Don't squat too deep."; // Example: If too low, could be too deep
+        } else if (angleType === 'hip') {
+          feedback = "Bend hips more."; // Example: If too low, not bending enough
+        } else if (angleType === 'back') {
+          feedback = "Don't overextend your back."; // Example: If too low, overextending
+        }
+      }
+    }
+
+    return { feedback, barData };
+  };
+
 
   const analyzeSquatPose = (keypoints: poseDetection.Keypoint[]): squatAnalysis => {
     const get = (i: number) => keypoints[i];
@@ -293,11 +439,9 @@ const AICoachDemo = () => {
 
     const leftKneeAngle = getAngle(leftHip, leftKnee, leftAnkle);
     const rightKneeAngle = getAngle(rightHip, rightKnee, rightAnkle);
-    const avgKneeAngle = (leftKneeAngle + rightKneeAngle) / 2;
 
     const leftHipAngle = getAngle(leftShoulder, leftHip, leftKnee);
-    const rightHipAngle = getAngle(rightShoulder, rightHip, rightKnee);
-    const avgHipAngle = (leftHipAngle + rightHipAngle) / 2;
+    const rightHipAngle = getAngle(rightShoulder, rightHip, leftKnee); // Fixed: should be leftKnee for hip angle calculation
 
     const backVector = {
       x: (leftShoulder.x + rightShoulder.x) / 2 - (leftHip.x + rightHip.x) / 2,
@@ -309,50 +453,24 @@ const AICoachDemo = () => {
     const avgHipY = (leftHip.y + rightHip.y) / 2;
     const avgKneeY = (leftKnee.y + rightKnee.y) / 2;
     const depthBelowParallel = avgHipY > avgKneeY;
-
     const symmetryDiff = Math.abs(leftKneeAngle - rightKneeAngle);
     const symmetryIssue = symmetryDiff > 15;
 
-    const feedback: string[] = [];
-
-    // --- Continuous Scoring ---
-    const kneeDepth = scoreFromRange(avgKneeAngle, 60, 100, 30, true); // lower = better
-    if (kneeDepth < 20) feedback.push("Squat deeper to improve knee angle.");
-
-    const hipToKneeGap = avgHipY - avgKneeY; // positive = deeper
-    const hipDepth = scoreFromRange(hipToKneeGap, -200, 40, 25); // deeper = better
-    if (hipDepth < 15) feedback.push("Lower your hips below knee level.");
-
-    const backPosture = scoreFromRange(backAngle, -20, 50, 20); // higher = better
-    if (backPosture < 10) feedback.push("Straighten your back to be more upright.");
-
-    const symmetry = scoreFromRange(symmetryDiff, 0, 30, 15, true); // smaller = better
-    if (symmetry < 10) feedback.push("Balance left and right knee angles.");
-
-    const hipBend = scoreFromRange(avgHipAngle, 40, 100, 10); // ideal mid-range
-    if (hipBend < 5) feedback.push("Adjust hip fold for better squat posture.");
-
-    const componentScores: SquatComponentScores = {
-      kneeDepth,
-      hipDepth,
-      backPosture,
-      symmetry,
-      hipBend,
-    };
-
-    const totalScore = Object.values(componentScores).reduce((sum, s) => sum + s, 0);
 
     return {
-      leftKneeAngle,
-      rightKneeAngle,
-      leftHipAngle,
-      rightHipAngle,
-      backAngle,
+      leftKneeAngle: leftKneeAngle,
+      rightKneeAngle: rightKneeAngle,
+      leftHipAngle: leftHipAngle,
+      rightHipAngle: rightHipAngle,
+      backAngle: backAngle,
       depthBelowParallel,
       symmetryIssue,
-      feedback,
-      componentScores,
-      totalScore,
+      kneeFeedback: "", // These will be populated in performDetectionAndUpdateUI
+      hipFeedback: "",
+      backFeedback: "",
+      kneeBarData: null,
+      hipBarData: null,
+      backBarData: null,
     };
   };
 
@@ -378,34 +496,77 @@ const AICoachDemo = () => {
         </Label>
 
         {selectedExercise === "Squat" && squatMetrics && (
-        <>
-          <ScoreBarContainer>
-            <ScoreLabel>Total Squat Score: {squatMetrics.totalScore}</ScoreLabel>
-            <ScoreBarBackground>
-              <ScoreBarFill score={squatMetrics.totalScore} max={100}/>
-            </ScoreBarBackground>
-          </ScoreBarContainer>
+          <AngleDisplayContainer>
+            <AngleItem>
+              <AngleLabelValue>
+                <span>Knee Bend Angle:</span>
+                <span>{squatMetrics.leftKneeAngle}°</span>
+              </AngleLabelValue>
+              {squatMetrics.kneeBarData && (
+                <FeedbackBarWrapper>
+                  <FeedbackBarIdealLine />
+                  <FeedbackBarFill
+                    $position={squatMetrics.kneeBarData.value}
+                    $color={
+                      Math.abs(squatMetrics.leftKneeAngle - IDEAL_ANGLES.knee) <= EXCELLENT_RANGE_DEGREES
+                        ? '#4CAF50' // Green for excellent
+                        : Math.abs(squatMetrics.leftKneeAngle - IDEAL_ANGLES.knee) <= DISPLAY_RANGE_DEGREES
+                        ? '#ffc107' // Orange for good range
+                        : '#f44336' // Red for outside range (though bar only shows within range)
+                    }
+                  />
+                </FeedbackBarWrapper>
+              )}
+              <FeedbackText>{squatMetrics.kneeFeedback}</FeedbackText>
+            </AngleItem>
 
-          {Object.entries(squatMetrics.componentScores).map(([label, score]) => {
-            const key = label as keyof SquatComponentScores;
-            const max = MAX_SCORES[key];
+            <AngleItem>
+              <AngleLabelValue>
+                <span>Hip Bend Angle:</span>
+                <span>{squatMetrics.leftHipAngle}°</span>
+              </AngleLabelValue>
+              {squatMetrics.hipBarData && (
+                <FeedbackBarWrapper>
+                  <FeedbackBarIdealLine />
+                  <FeedbackBarFill
+                    $position={squatMetrics.hipBarData.value}
+                    $color={
+                      Math.abs(squatMetrics.leftHipAngle - IDEAL_ANGLES.hip) <= EXCELLENT_RANGE_DEGREES
+                        ? '#4CAF50'
+                        : Math.abs(squatMetrics.leftHipAngle - IDEAL_ANGLES.hip) <= DISPLAY_RANGE_DEGREES
+                        ? '#ffc107'
+                        : '#f44336'
+                    }
+                  />
+                </FeedbackBarWrapper>
+              )}
+              <FeedbackText>{squatMetrics.hipFeedback}</FeedbackText>
+            </AngleItem>
 
-            return (
-              <ScoreBarContainer key={label}>
-                <ScoreLabel>
-                  {label
-                    .replace(/([A-Z])/g, " $1")
-                    .replace(/^./, (s) => s.toUpperCase())}: {score} / {max}
-                </ScoreLabel>
-                <ScoreBarBackground>
-                  <ScoreBarFill score={score} max={max} />
-                </ScoreBarBackground>
-              </ScoreBarContainer>
-            );
-          })}
-
-        </>
-      )}
+            <AngleItem>
+              <AngleLabelValue>
+                <span>Back Tilt Angle:</span>
+                <span>{squatMetrics.backAngle}°</span>
+              </AngleLabelValue>
+              {squatMetrics.backBarData && (
+                <FeedbackBarWrapper>
+                  <FeedbackBarIdealLine />
+                  <FeedbackBarFill
+                    $position={squatMetrics.backBarData.value}
+                    $color={
+                      Math.abs(squatMetrics.backAngle - IDEAL_ANGLES.back) <= EXCELLENT_RANGE_DEGREES
+                        ? '#4CAF50'
+                        : Math.abs(squatMetrics.backAngle - IDEAL_ANGLES.back) <= DISPLAY_RANGE_DEGREES
+                        ? '#ffc107'
+                        : '#f44336'
+                    }
+                  />
+                </FeedbackBarWrapper>
+              )}
+              <FeedbackText>{squatMetrics.backFeedback}</FeedbackText>
+            </AngleItem>
+          </AngleDisplayContainer>
+        )}
       </ControlPanel>
     </PageLayout>
   );
