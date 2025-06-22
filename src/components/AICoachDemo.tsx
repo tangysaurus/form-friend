@@ -131,21 +131,26 @@ type goodMorningAnalysis = {
 
 
 // --- (All styled-components remain the same) ---
+/* Page Layout: Centered with a new blue background */
 const PageLayout = styled.div`
   display: flex;
+  justify-content: center; /* Horizontally center the content */
   align-items: flex-start;
   padding: 40px;
-  gap: 40px;
+  gap: 40px; /* Increased space between camera and controls */
   font-family: 'Poppins', sans-serif;
-  background-color: #f9f9f9;
+  background-color:rgb(2, 54, 88); /* Light blue background */
   min-height: 100vh;
 `;
+
+
 const CameraWrapper = styled.div`
-  flex: 0 0 640px;
+  flex:   1.25; /* Takes up twice the space of the control panel */
+  max-width: 960px; /* Added a max width for very large screens */
   position: relative;
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15); /* Slightly enhanced shadow */
   background-color: #000;
 `;
 const WebcamVideo = styled.video`
@@ -163,6 +168,7 @@ const WebcamCanvas = styled.canvas`
   pointer-events: none;
 `;
 const ControlPanel = styled.div`
+  flex: 1; /* Takes up one part of the available space */
   display: flex;
   flex-direction: column;
   gap: 30px;
@@ -171,7 +177,7 @@ const ControlPanel = styled.div`
   padding: 30px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   max-width: 400px;
-  min-width: 300px;
+  min-width: 350px; /* Slightly wider for better text fit */
 `;
 const Label = styled.label`
   font-size: 1.1rem;
@@ -299,19 +305,20 @@ const ViewToggleContainer = styled.div`
   overflow: hidden;
   width: fit-content;
   margin-bottom: 20px;
+  margin-right: 20px;
 `;
 
 const ViewOption = styled.button<{ active: boolean }>`
   padding: 10px 20px;
   border: none;
-  background: ${({ active }) => (active ? "#4caf50" : "#f0f0f0")};
+  background: ${({ active }) => (active ? "#023658" : "#f0f0f0")};
   color: ${({ active }) => (active ? "white" : "#333")};
   font-weight: 600;
   cursor: pointer;
   transition: background 0.3s ease;
 
   &:hover {
-    background: ${({ active }) => (active ? "#43a047" : "#e0e0e0")};
+    background: ${({ active }) => (active ? "#e0e0e0" : "#e0e0e0")};
   }
 `;
 
