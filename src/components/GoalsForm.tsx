@@ -93,7 +93,7 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
                     </CardDescription>
                     {/* NEW PARAGRAPH FOR MANDATORY MESSAGE */}
                     <p className="text-lg text-red-500 mt-2">
-                        * Primary Goal and Fitness Level are mandatory.
+                        * Primary Goal and Fitness Level fields are mandatory for personal plan.
                     </p>
                 </CardHeader>
 

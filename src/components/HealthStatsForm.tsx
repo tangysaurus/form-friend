@@ -88,7 +88,7 @@ const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats | null) => vo
                     </CardDescription>
                     {/* NEW PARAGRAPH FOR MANDATORY MESSAGE */}
                     <p className="text-lg text-red-500 mt-2">
-                        * fields are mandatory for personalized plan
+                        * Age field is mandatory for personalized plan.
                     </p>
                 </CardHeader>
 
