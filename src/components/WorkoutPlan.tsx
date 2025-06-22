@@ -163,7 +163,7 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
         return (
             <Button onClick={handlePlayIntro} disabled={!isVapiReady || loading} className="mt-6 bg-gradient-to-r from-green-500 to-teal-600 text-white font-semibold px-6 py-3 rounded-full text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                 {isVapiReady ? <PlayCircle className="w-5 h-5 mr-2" /> : <Loader className="w-5 h-5 mr-2 animate-spin" />}
-                Play Audio Intro
+                Talk to a Trainer
             </Button>
         );
     };
