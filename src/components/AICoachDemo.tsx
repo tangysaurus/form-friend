@@ -4,6 +4,28 @@ import "@tensorflow/tfjs-backend-webgl";
 import * as tf from "@tensorflow/tfjs";
 import styled from "styled-components";
 
+// define squatAnalysis type
+type SquatComponentScores = {
+  kneeDepth: number;
+  hipDepth: number;
+  backPosture: number;
+  symmetry: number;
+  hipBend: number;
+};
+
+type squatAnalysis = {
+  leftKneeAngle: number;
+  rightKneeAngle: number;
+  leftHipAngle: number;
+  rightHipAngle: number;
+  backAngle: number;
+  depthBelowParallel: boolean;
+  symmetryIssue: boolean;
+  feedback: string[];
+  componentScores: SquatComponentScores;
+  totalScore: number;
+};
+
 
 // Layout containers
 const PageLayout = styled.div`
@@ -71,15 +93,24 @@ const ScoreBarBackground = styled.div`
   border-radius: 10px;
 `;
 
-const ScoreBarFill = styled.div<{ score: number }>`
+const MAX_SCORES: Record<keyof SquatComponentScores, number> = {
+  kneeDepth: 30,
+  hipDepth: 25,
+  backPosture: 20,
+  symmetry: 15,
+  hipBend: 10,
+};
+
+const ScoreBarFill = styled.div<{ score: number; max: number }>`
   height: 100%;
-  background: ${({ score }) =>
-    score > 80 ? "#4caf50" : score > 50 ? "#ffc107" : "#f44336"};
-  width: ${({ score }) => `${score}%`};
-  border-radius: 10px;
+  background: ${({ score, max }) =>
+    score / max > 0.8 ? "#4caf50" :
+    score / max > 0.5 ? "#ffc107" :
+    "#f44336"};
+  width: ${({ score, max }) => `${(score / max) * 100}%`};
+  border-radius: 8px;
   transition: width 0.3s ease;
 `;
-
 
 const AICoachDemo = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -235,18 +266,18 @@ const AICoachDemo = () => {
     return angleDeg;
   }
 
-  // define squatAnalysis type
-  type squatAnalysis = {
-    leftKneeAngle: number;
-    rightKneeAngle: number;
-    leftHipAngle: number;
-    rightHipAngle: number;
-    backAngle: number;
-    depthBelowParallel: boolean;
-    symmetryIssue: boolean;
-    feedback: string[];
-    score: number;
-  };
+  const scoreFromRange = (
+    value: number,
+    idealMin: number,
+    idealMax: number,
+    maxScore: number,
+    reverse = false
+  ): number => {
+      const clamped = Math.max(Math.min(value, idealMax), idealMin);
+      const ratio = (clamped - idealMin) / (idealMax - idealMin);
+      const score = reverse ? (1 - ratio) * maxScore : ratio * maxScore;
+      return Math.round(score);
+    };
 
   const analyzeSquatPose = (keypoints: poseDetection.Keypoint[]): squatAnalysis => {
     const get = (i: number) => keypoints[i];
@@ -262,9 +293,10 @@ const AICoachDemo = () => {
 
     const leftKneeAngle = getAngle(leftHip, leftKnee, leftAnkle);
     const rightKneeAngle = getAngle(rightHip, rightKnee, rightAnkle);
+    const avgKneeAngle = (leftKneeAngle + rightKneeAngle) / 2;
+
     const leftHipAngle = getAngle(leftShoulder, leftHip, leftKnee);
     const rightHipAngle = getAngle(rightShoulder, rightHip, rightKnee);
-
     const avgHipAngle = (leftHipAngle + rightHipAngle) / 2;
 
     const backVector = {
@@ -282,51 +314,33 @@ const AICoachDemo = () => {
     const symmetryIssue = symmetryDiff > 15;
 
     const feedback: string[] = [];
-    let score = 0;
 
-    // ---- SCORING ----
+    // --- Continuous Scoring ---
+    const kneeDepth = scoreFromRange(avgKneeAngle, 60, 100, 30, true); // lower = better
+    if (kneeDepth < 20) feedback.push("Squat deeper to improve knee angle.");
 
-    // 1. Knee angle (depth)
-    const avgKneeAngle = (leftKneeAngle + rightKneeAngle) / 2;
-    if (avgKneeAngle <= 110) {
-      score += 30;
-    } else if (avgKneeAngle <= 130) {
-      score += 15;
-      feedback.push("Try squatting a bit deeper.");
-    } else {
-      feedback.push("You're not squatting deep enough.");
-    }
+    const hipToKneeGap = avgHipY - avgKneeY; // positive = deeper
+    const hipDepth = scoreFromRange(hipToKneeGap, -200, 40, 25); // deeper = better
+    if (hipDepth < 15) feedback.push("Lower your hips below knee level.");
 
-    // 2. Hip below knee
-    if (depthBelowParallel) {
-      score += 25;
-    } else {
-      feedback.push("Try to get your hips below your knees.");
-    }
+    const backPosture = scoreFromRange(backAngle, -20, 50, 20); // higher = better
+    if (backPosture < 10) feedback.push("Straighten your back to be more upright.");
 
-    // 3. Back angle (upright)
-    if (backAngle >= 45) {
-      score += 20;
-    } else if (backAngle >= 30) {
-      score += 10;
-      feedback.push("Keep your chest up and back more upright.");
-    } else {
-      feedback.push("You're leaning too far forward.");
-    }
+    const symmetry = scoreFromRange(symmetryDiff, 0, 30, 15, true); // smaller = better
+    if (symmetry < 10) feedback.push("Balance left and right knee angles.");
 
-    // 4. Symmetry
-    if (symmetryDiff <= 15) {
-      score += 15;
-    } else {
-      feedback.push("Your squat is uneven—distribute weight evenly.");
-    }
+    const hipBend = scoreFromRange(avgHipAngle, 40, 100, 10); // ideal mid-range
+    if (hipBend < 5) feedback.push("Adjust hip fold for better squat posture.");
 
-    // 5. Hip bend
-    if (avgHipAngle >= 40 && avgHipAngle <= 100) {
-      score += 10;
-    } else {
-      feedback.push("Check hip mobility or posture—hip bend off.");
-    }
+    const componentScores: SquatComponentScores = {
+      kneeDepth,
+      hipDepth,
+      backPosture,
+      symmetry,
+      hipBend,
+    };
+
+    const totalScore = Object.values(componentScores).reduce((sum, s) => sum + s, 0);
 
     return {
       leftKneeAngle,
@@ -337,9 +351,11 @@ const AICoachDemo = () => {
       depthBelowParallel,
       symmetryIssue,
       feedback,
-      score,
+      componentScores,
+      totalScore,
     };
   };
+
 
   return (
     <PageLayout>
@@ -362,13 +378,34 @@ const AICoachDemo = () => {
         </Label>
 
         {selectedExercise === "Squat" && squatMetrics && (
+        <>
           <ScoreBarContainer>
-            <ScoreLabel>Squat Score: {squatMetrics.score}</ScoreLabel>
+            <ScoreLabel>Total Squat Score: {squatMetrics.totalScore}</ScoreLabel>
             <ScoreBarBackground>
-              <ScoreBarFill score={squatMetrics.score} />
+              <ScoreBarFill score={squatMetrics.totalScore} max={100}/>
             </ScoreBarBackground>
           </ScoreBarContainer>
-        )}
+
+          {Object.entries(squatMetrics.componentScores).map(([label, score]) => {
+            const key = label as keyof SquatComponentScores;
+            const max = MAX_SCORES[key];
+
+            return (
+              <ScoreBarContainer key={label}>
+                <ScoreLabel>
+                  {label
+                    .replace(/([A-Z])/g, " $1")
+                    .replace(/^./, (s) => s.toUpperCase())}: {score} / {max}
+                </ScoreLabel>
+                <ScoreBarBackground>
+                  <ScoreBarFill score={score} max={max} />
+                </ScoreBarBackground>
+              </ScoreBarContainer>
+            );
+          })}
+
+        </>
+      )}
       </ControlPanel>
     </PageLayout>
   );
