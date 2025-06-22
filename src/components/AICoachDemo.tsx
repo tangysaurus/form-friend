@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,14 +43,32 @@ const AICoachDemo = ({ onBack }: { onBack: () => void }) => {
         
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          console.log("Camera stream connected");
-          setCameraReady(true);
-          setCameraError(null);
+          
+          // Wait for video to be ready before setting cameraReady
+          const handleVideoReady = () => {
+            console.log("Video stream ready");
+            if (mounted) {
+              setCameraReady(true);
+              setCameraError(null);
+            }
+          };
+
+          // Listen for when video metadata is loaded
+          videoRef.current.addEventListener('loadedmetadata', handleVideoReady);
+          videoRef.current.addEventListener('canplay', handleVideoReady);
+          
+          // Try to play the video
+          videoRef.current.play().catch(error => {
+            console.error("Video play error:", error);
+            if (mounted) {
+              setCameraError("Unable to start video playback");
+            }
+          });
         }
       } catch (error) {
         console.error("Camera access error:", error);
         if (mounted) {
-          setCameraError("Unable to access camera. Please check permissions.");
+          setCameraError("Unable to access camera. Please check permissions and refresh the page.");
         }
       }
     };
@@ -160,7 +179,7 @@ const AICoachDemo = ({ onBack }: { onBack: () => void }) => {
                     className="w-full h-full object-cover rounded-lg"
                   />
                 )}
-                {isRecording && (
+                {isRecording && cameraReady && (
                   <div className="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold animate-pulse">
                     REC
                   </div>
