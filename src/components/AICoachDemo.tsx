@@ -280,7 +280,15 @@ const demoVideos: Record<string, string> = {
   "Squat": "/squat_animation.mp4",
   "Push-up": "/pushup_animation.mp4",
   "Plank": "/plank_animation.mp4",
-  "Shoulder Press": "/shoulderpress_animation.mp4"
+  "Shoulder Press": "/shoulderpress_animation.mp4",
+  "Lunge": "/lunge_animation.mp4",
+  "Hip Thrust": "hipthrust_animation.mp4",
+  "Barbell Row": "barbellrow_animation.mp4",
+  "Good Morning": "goodmorning_animation.mp4",
+  "Sit-up": "situp_animation.mp4",
+  "Bicep Curl": "bicepcurl_animation.mp4",
+  "RDL": "rdl_animation.mp4",
+  "Deadlift": "deadlift_animation.mp4"
   // ...
 };
 
