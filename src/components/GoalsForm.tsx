@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Target, Calendar, Dumbbell } from "lucide-react";
+import { Target, Calendar, Dumbbell, SkipForward } from "lucide-react";
 
 interface Goals {
   primaryGoal: string;
@@ -16,7 +15,7 @@ interface Goals {
   timeframe: string;
 }
 
-const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals) => void }) => {
+const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }) => {
   const [goals, setGoals] = useState<Goals>({
     primaryGoal: "",
     targetWeight: "",
@@ -42,6 +41,10 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals) => void }) => {
     onComplete(goals);
   };
 
+  const handleSkip = () => {
+    onComplete(null);
+  };
+
   const isValid = goals.primaryGoal && goals.workoutFrequency && goals.muscleGroups.length > 0 && goals.timeframe;
 
   return (
@@ -53,7 +56,7 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals) => void }) => {
           </div>
           <CardTitle className="text-3xl font-bold text-gray-800">What are your goals?</CardTitle>
           <CardDescription className="text-lg text-gray-600">
-            Let's create a workout plan that matches your aspirations
+            Let's create a workout plan that matches your aspirations (all fields optional)
           </CardDescription>
         </CardHeader>
         
@@ -150,13 +153,24 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals) => void }) => {
               </div>
             </div>
 
-            <Button 
-              type="submit" 
-              disabled={!isValid}
-              className="w-full h-12 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-xl transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
-            >
-              Generate My Workout Plan
-            </Button>
+            <div className="flex gap-4">
+              <Button 
+                type="submit" 
+                className="flex-1 h-12 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-xl transition-all duration-300 hover:scale-105"
+              >
+                Generate My Workout Plan
+              </Button>
+              
+              <Button 
+                type="button"
+                onClick={handleSkip}
+                variant="outline"
+                className="h-12 px-6 border-2 border-gray-300 text-gray-600 hover:bg-gray-50 font-semibold rounded-xl transition-all duration-300"
+              >
+                <SkipForward className="w-4 h-4 mr-2" />
+                Skip
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>

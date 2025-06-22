@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Scale, Ruler, Activity } from "lucide-react";
+import { User, Scale, Ruler, Activity, SkipForward } from "lucide-react";
 
 interface HealthStats {
   age: string;
@@ -15,7 +14,7 @@ interface HealthStats {
   gender: string;
 }
 
-const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats) => void }) => {
+const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats | null) => void }) => {
   const [stats, setStats] = useState<HealthStats>({
     age: "",
     weight: "",
@@ -29,7 +28,9 @@ const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats) => void }) =
     onNext(stats);
   };
 
-  const isValid = stats.age && stats.weight && stats.height && stats.fitnessLevel && stats.gender;
+  const handleSkip = () => {
+    onNext(null);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-6">
@@ -40,7 +41,7 @@ const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats) => void }) =
           </div>
           <CardTitle className="text-3xl font-bold text-gray-800">Tell us about yourself</CardTitle>
           <CardDescription className="text-lg text-gray-600">
-            We'll use this information to create your personalized training plan
+            We'll use this information to create your personalized training plan (all fields optional)
           </CardDescription>
         </CardHeader>
         
@@ -127,13 +128,24 @@ const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats) => void }) =
               </Select>
             </div>
 
-            <Button 
-              type="submit" 
-              disabled={!isValid}
-              className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
-            >
-              Continue to Goals
-            </Button>
+            <div className="flex gap-4">
+              <Button 
+                type="submit" 
+                className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300 hover:scale-105"
+              >
+                Continue to Goals
+              </Button>
+              
+              <Button 
+                type="button"
+                onClick={handleSkip}
+                variant="outline"
+                className="h-12 px-6 border-2 border-gray-300 text-gray-600 hover:bg-gray-50 font-semibold rounded-xl transition-all duration-300"
+              >
+                <SkipForward className="w-4 h-4 mr-2" />
+                Skip
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>

@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, Flame, Trophy, Camera } from "lucide-react";
+import { CheckCircle, Clock, Flame, Trophy, Camera, Zap } from "lucide-react";
 
 interface WorkoutPlanProps {
   healthStats: any;
@@ -35,6 +35,8 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
     }
   ];
 
+  const hasUserData = healthStats || goals;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-teal-50 p-6">
       <div className="max-w-6xl mx-auto">
@@ -42,38 +44,66 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
           <div className="mx-auto w-16 h-16 bg-gradient-to-r from-green-500 to-teal-600 rounded-full flex items-center justify-center mb-6">
             <Trophy className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">Your Personalized Workout Plan</h1>
+          <h1 className="text-4xl font-bold text-gray-800 mb-4">
+            {hasUserData ? "Your Personalized Workout Plan" : "Default Workout Plan"}
+          </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Based on your profile, we've created a custom plan to help you achieve your goals
+            {hasUserData 
+              ? "Based on your profile, we've created a custom plan to help you achieve your goals"
+              : "A general workout plan to get you started - customize it anytime by adding your profile"
+            }
           </p>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardContent className="p-6 text-center">
-              <Clock className="w-8 h-8 text-blue-600 mx-auto mb-3" />
-              <h3 className="font-semibold text-gray-800 mb-2">Duration</h3>
-              <p className="text-2xl font-bold text-blue-600">{goals.timeframe}</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardContent className="p-6 text-center">
-              <Flame className="w-8 h-8 text-orange-600 mx-auto mb-3" />
-              <h3 className="font-semibold text-gray-800 mb-2">Frequency</h3>
-              <p className="text-2xl font-bold text-orange-600">{goals.workoutFrequency}</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardContent className="p-6 text-center">
-              <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-3" />
-              <h3 className="font-semibold text-gray-800 mb-2">Goal</h3>
-              <p className="text-2xl font-bold text-green-600 capitalize">{goals.primaryGoal.replace('-', ' ')}</p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Summary Cards - only show if user has data */}
+        {hasUserData && (
+          <div className="grid md:grid-cols-3 gap-6 mb-12">
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+              <CardContent className="p-6 text-center">
+                <Clock className="w-8 h-8 text-blue-600 mx-auto mb-3" />
+                <h3 className="font-semibold text-gray-800 mb-2">Duration</h3>
+                <p className="text-2xl font-bold text-blue-600">{goals?.timeframe || "Flexible"}</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+              <CardContent className="p-6 text-center">
+                <Flame className="w-8 h-8 text-orange-600 mx-auto mb-3" />
+                <h3 className="font-semibold text-gray-800 mb-2">Frequency</h3>
+                <p className="text-2xl font-bold text-orange-600">{goals?.workoutFrequency || "3-4x/week"}</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+              <CardContent className="p-6 text-center">
+                <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-3" />
+                <h3 className="font-semibold text-gray-800 mb-2">Goal</h3>
+                <p className="text-2xl font-bold text-green-600 capitalize">
+                  {goals?.primaryGoal?.replace('-', ' ') || "General Fitness"}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Quick Start for AI Coach */}
+        <Card className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-0 shadow-2xl mb-8">
+          <CardContent className="p-8 text-center">
+            <Zap className="w-12 h-12 mx-auto mb-4" />
+            <h2 className="text-3xl font-bold mb-4">Jump Straight to AI Training</h2>
+            <p className="text-xl mb-6 opacity-90">
+              Skip the plan and start working out with real-time AI form feedback right now
+            </p>
+            <Button 
+              onClick={onStartWorkout}
+              size="lg"
+              className="bg-white text-cyan-600 hover:bg-gray-100 font-semibold px-8 py-4 rounded-full text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            >
+              <Camera className="w-5 h-5 mr-2" />
+              Start AI Training Now
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Workout Plan */}
         <div className="grid md:grid-cols-3 gap-6 mb-12">

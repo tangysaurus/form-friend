@@ -19,7 +19,12 @@ const Index = () => {
 
   const handleHealthStatsNext = (stats: any) => {
     setHealthStats(stats);
-    setCurrentStep("goals");
+    if (stats === null) {
+      // User skipped health stats, also skip goals and go to workout plan
+      setCurrentStep("workout-plan");
+    } else {
+      setCurrentStep("goals");
+    }
   };
 
   const handleGoalsComplete = (goalData: any) => {
