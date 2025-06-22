@@ -1,41 +1,126 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Clock, Flame, Trophy, Camera, Zap } from "lucide-react";
+import { useState, useEffect } from 'react'; // Import useState and useEffect
+
+interface WorkoutPlanItem {
+  day: string;
+  focus: string;
+  exercises: string[];
+  duration: string;
+  difficulty: string;
+}
 
 interface WorkoutPlanProps {
-  healthStats: any;
-  goals: any;
+  healthStats: {
+    age?: number;
+    gender?: string;
+    weight?: number;
+    height?: number;
+    medicalConditions?: string;
+    // ... other health stats
+  };
+  goals: {
+    primaryGoal?: string;
+    workoutFrequency?: string;
+    timeframe?: string;
+    fitnessLevel?: string;
+    availableEquipment?: string;
+    // ... other goals
+  };
   onStartWorkout: () => void;
 }
 
 const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) => {
-  const workoutPlan = [
-    {
-      day: "Day 1",
-      focus: "Upper Body",
-      exercises: ["Push-ups", "Pull-ups", "Shoulder Press", "Tricep Dips"],
-      duration: "45 min",
-      difficulty: "Intermediate"
-    },
-    {
-      day: "Day 2",
-      focus: "Lower Body",
-      exercises: ["Squats", "Lunges", "Deadlifts", "Calf Raises"],
-      duration: "50 min",
-      difficulty: "Intermediate"
-    },
-    {
-      day: "Day 3",
-      focus: "Core & Cardio",
-      exercises: ["Planks", "Russian Twists", "Mountain Climbers", "Burpees"],
-      duration: "40 min",
-      difficulty: "Beginner"
-    }
-  ];
+  const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlanItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const hasUserData = healthStats || goals;
+  const hasUserData = healthStats && Object.keys(healthStats).length > 0 && goals && Object.keys(goals).length > 0;
+
+  useEffect(() => {
+    const fetchWorkoutPlan = async () => {
+      if (!hasUserData) {
+        // Default plan if no user data
+        setWorkoutPlan([
+          {
+            day: "Day 1",
+            focus: "Upper Body",
+            exercises: ["Push-ups", "Pull-ups", "Shoulder Press", "Tricep Dips"],
+            duration: "45 min",
+            difficulty: "Intermediate"
+          },
+          {
+            day: "Day 2",
+            focus: "Lower Body",
+            exercises: ["Squats", "Lunges", "Deadlifts", "Calf Raises"],
+            duration: "50 min",
+            difficulty: "Intermediate"
+          },
+          {
+            day: "Day 3",
+            focus: "Core & Cardio",
+            exercises: ["Planks", "Russian Twists", "Mountain Climbers", "Burpees"],
+            duration: "40 min",
+            difficulty: "Beginner"
+          }
+        ]);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch('/api/generate-workout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ healthStats, goals }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to fetch workout plan');
+        }
+
+        const data: WorkoutPlanItem[] = await response.json();
+        setWorkoutPlan(data);
+      } catch (err: any) {
+        console.error("Error fetching workout plan:", err);
+        setError(err.message || "Failed to generate workout plan. Please try again.");
+        // Fallback to default plan on error
+        setWorkoutPlan([
+          {
+            day: "Day 1",
+            focus: "Upper Body",
+            exercises: ["Push-ups", "Pull-ups", "Shoulder Press", "Tricep Dips"],
+            duration: "45 min",
+            difficulty: "Intermediate"
+          },
+          {
+            day: "Day 2",
+            focus: "Lower Body",
+            exercises: ["Squats", "Lunges", "Deadlifts", "Calf Raises"],
+            duration: "50 min",
+            difficulty: "Intermediate"
+          },
+          {
+            day: "Day 3",
+            focus: "Core & Cardio",
+            exercises: ["Planks", "Russian Twists", "Mountain Climbers", "Burpees"],
+            duration: "40 min",
+            difficulty: "Beginner"
+          }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWorkoutPlan();
+  }, [healthStats, goals, hasUserData]); // Re-fetch when healthStats or goals change
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-teal-50 p-6">
@@ -48,7 +133,7 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
             {hasUserData ? "Your Personalized Workout Plan" : "Default Workout Plan"}
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            {hasUserData 
+            {hasUserData
               ? "Based on your profile, we've created a custom plan to help you achieve your goals"
               : "A general workout plan to get you started - customize it anytime by adding your profile"
             }
@@ -65,7 +150,7 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
                 <p className="text-2xl font-bold text-blue-600">{goals?.timeframe || "Flexible"}</p>
               </CardContent>
             </Card>
-            
+
             <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
               <CardContent className="p-6 text-center">
                 <Flame className="w-8 h-8 text-orange-600 mx-auto mb-3" />
@@ -73,7 +158,7 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
                 <p className="text-2xl font-bold text-orange-600">{goals?.workoutFrequency || "3-4x/week"}</p>
               </CardContent>
             </Card>
-            
+
             <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
               <CardContent className="p-6 text-center">
                 <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-3" />
@@ -94,7 +179,7 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
             <p className="text-xl mb-6 opacity-90">
               Skip the plan and start working out with real-time AI form feedback right now
             </p>
-            <Button 
+            <Button
               onClick={onStartWorkout}
               size="lg"
               className="bg-white text-cyan-600 hover:bg-gray-100 font-semibold px-8 py-4 rounded-full text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
@@ -105,40 +190,60 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
           </CardContent>
         </Card>
 
+        {loading && (
+          <div className="text-center text-xl text-gray-700 mb-8">
+            Generating your personalized workout plan...
+          </div>
+        )}
+
+        {error && (
+          <div className="text-center text-red-600 text-lg mb-8">
+            Error: {error}
+          </div>
+        )}
+
         {/* Workout Plan */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
-          {workoutPlan.map((workout, index) => (
-            <Card key={index} className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-xl text-gray-800">{workout.day}</CardTitle>
-                  <Badge variant="secondary" className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
-                    {workout.difficulty}
-                  </Badge>
-                </div>
-                <CardDescription className="text-lg font-medium text-gray-700">
-                  {workout.focus}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-gray-600 mb-4">
-                    <Clock className="w-4 h-4" />
-                    <span>{workout.duration}</span>
+        {workoutPlan.length > 0 ? (
+          <div className="grid md:grid-cols-3 gap-6 mb-12">
+            {workoutPlan.map((workout, index) => (
+              <Card key={index} className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-shadow">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-xl text-gray-800">{workout.day}</CardTitle>
+                    <Badge variant="secondary" className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
+                      {workout.difficulty}
+                    </Badge>
                   </div>
-                  <ul className="space-y-2">
-                    {workout.exercises.map((exercise, idx) => (
-                      <li key={idx} className="flex items-center gap-2 text-gray-700">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        {exercise}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  <CardDescription className="text-lg font-medium text-gray-700">
+                    {workout.focus}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-gray-600 mb-4">
+                      <Clock className="w-4 h-4" />
+                      <span>{workout.duration}</span>
+                    </div>
+                    <ul className="space-y-2">
+                      {workout.exercises.map((exercise, idx) => (
+                        <li key={idx} className="flex items-center gap-2 text-gray-700">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          {exercise}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          !loading && !error && (
+            <div className="text-center text-gray-600 text-lg mb-8">
+              No workout plan generated yet. Please provide your health stats and goals.
+            </div>
+          )
+        )}
 
         {/* AI Coach Feature */}
         <Card className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-0 shadow-2xl mb-8">
@@ -148,7 +253,7 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
             <p className="text-xl mb-6 opacity-90">
               Your AI coach will watch your form in real-time and provide instant feedback to perfect your technique
             </p>
-            <Button 
+            <Button
               onClick={onStartWorkout}
               size="lg"
               className="bg-white text-indigo-600 hover:bg-gray-100 font-semibold px-8 py-4 rounded-full text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"

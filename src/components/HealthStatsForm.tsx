@@ -4,14 +4,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Scale, Ruler, Activity, SkipForward } from "lucide-react";
+import { User, Scale, Ruler, HeartPulse, SkipForward, Info } from "lucide-react"; // Import HeartPulse for medical conditions
 
 interface HealthStats {
   age: string;
-  weight: string;
-  height: string;
-  fitnessLevel: string;
+  weight: string; // Consider making this a number for better data typing if converting to kg later
+  height: string; // Consider making this a number for better data typing if converting to cm later
   gender: string;
+  medicalConditions: string; // New field for medical conditions/injuries
+  // Removed fitnessLevel from here as it's now in GoalsForm
 }
 
 const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats | null) => void }) => {
@@ -19,8 +20,8 @@ const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats | null) => vo
     age: "",
     weight: "",
     height: "",
-    fitnessLevel: "",
-    gender: ""
+    gender: "",
+    medicalConditions: "", // Initialize new field
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -44,7 +45,7 @@ const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats | null) => vo
             We'll use this information to create your personalized training plan (all fields optional)
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
@@ -62,10 +63,10 @@ const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats | null) => vo
                   className="h-12 border-2 border-gray-200 focus:border-blue-500 transition-colors"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="gender" className="text-sm font-medium text-gray-700">Gender</Label>
-                <Select onValueChange={(value) => setStats({...stats, gender: value})}>
+                <Select onValueChange={(value) => setStats({...stats, gender: value})} value={stats.gender}>
                   <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-blue-500">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
@@ -93,7 +94,7 @@ const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats | null) => vo
                   className="h-12 border-2 border-gray-200 focus:border-blue-500 transition-colors"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="height" className="text-sm font-medium text-gray-700 flex items-center gap-2">
                   <Ruler className="w-4 h-4" />
@@ -110,33 +111,35 @@ const HealthStatsForm = ({ onNext }: { onNext: (stats: HealthStats | null) => vo
               </div>
             </div>
 
+            {/* New: Medical Conditions/Injuries */}
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Activity className="w-4 h-4" />
-                Current Fitness Level
+              <Label htmlFor="medicalConditions" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <HeartPulse className="w-4 h-4" />
+                Medical Conditions / Injuries (Optional)
               </Label>
-              <Select onValueChange={(value) => setStats({...stats, fitnessLevel: value})}>
-                <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-blue-500">
-                  <SelectValue placeholder="Select your fitness level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="beginner">Beginner - Just starting out</SelectItem>
-                  <SelectItem value="intermediate">Intermediate - Regular exercise</SelectItem>
-                  <SelectItem value="advanced">Advanced - Very active lifestyle</SelectItem>
-                  <SelectItem value="expert">Expert - Professional athlete level</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                id="medicalConditions"
+                type="text"
+                placeholder="e.g., knee pain, lower back issues, high blood pressure"
+                value={stats.medicalConditions}
+                onChange={(e) => setStats({...stats, medicalConditions: e.target.value})}
+                className="h-12 border-2 border-gray-200 focus:border-blue-500 transition-colors"
+              />
+              <p className="text-xs text-gray-500 flex items-center gap-1">
+                <Info className="w-3 h-3" />
+                Provide any conditions the AI should be aware of for safe recommendations.
+              </p>
             </div>
 
             <div className="flex gap-4">
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300 hover:scale-105"
               >
                 Continue to Goals
               </Button>
-              
-              <Button 
+
+              <Button
                 type="button"
                 onClick={handleSkip}
                 variant="outline"

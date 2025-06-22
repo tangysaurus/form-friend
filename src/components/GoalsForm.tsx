@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Target, Calendar, Dumbbell, SkipForward } from "lucide-react";
+import { Target, Calendar, Dumbbell, SkipForward, HardHat } from "lucide-react"; // Import HardHat for equipment
 
 interface Goals {
   primaryGoal: string;
@@ -13,6 +13,9 @@ interface Goals {
   workoutFrequency: string;
   muscleGroups: string[];
   timeframe: string;
+  // New fields
+  fitnessLevel: string; // Added fitness level
+  availableEquipment: string; // Added available equipment
 }
 
 const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }) => {
@@ -21,7 +24,10 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
     targetWeight: "",
     workoutFrequency: "",
     muscleGroups: [],
-    timeframe: ""
+    timeframe: "",
+    // Initialize new fields
+    fitnessLevel: "",
+    availableEquipment: "",
   });
 
   const muscleGroupOptions = [
@@ -45,7 +51,10 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
     onComplete(null);
   };
 
-  const isValid = goals.primaryGoal && goals.workoutFrequency && goals.muscleGroups.length > 0 && goals.timeframe;
+  // The isValid check can be adjusted based on which fields you consider truly mandatory
+  // For now, let's keep it similar, but you might want to make more fields optional given the AI can work with less.
+  const isValid = goals.primaryGoal && goals.workoutFrequency && goals.fitnessLevel && goals.timeframe;
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center p-6">
@@ -59,13 +68,13 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
             Let's create a workout plan that matches your aspirations (all fields optional)
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label className="text-sm font-medium text-gray-700">Primary Goal</Label>
-                <Select onValueChange={(value) => setGoals({...goals, primaryGoal: value})}>
+                <Select onValueChange={(value) => setGoals({...goals, primaryGoal: value})} value={goals.primaryGoal}>
                   <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-purple-500">
                     <SelectValue placeholder="Choose your main goal" />
                   </SelectTrigger>
@@ -79,7 +88,7 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="targetWeight" className="text-sm font-medium text-gray-700">
                   Target Weight (lbs) - Optional
@@ -101,34 +110,70 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
                   <Calendar className="w-4 h-4" />
                   Workout Frequency
                 </Label>
-                <Select onValueChange={(value) => setGoals({...goals, workoutFrequency: value})}>
+                <Select onValueChange={(value) => setGoals({...goals, workoutFrequency: value})} value={goals.workoutFrequency}>
                   <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-purple-500">
                     <SelectValue placeholder="How often will you train?" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="2-3">2-3 times per week</SelectItem>
-                    <SelectItem value="4-5">4-5 times per week</SelectItem>
-                    <SelectItem value="6-7">6-7 times per week</SelectItem>
+                    <SelectItem value="2-3 times per week">2-3 times per week</SelectItem>
+                    <SelectItem value="3-4 times per week">3-4 times per week</SelectItem>
+                    <SelectItem value="4-5 times per week">4-5 times per week</SelectItem>
+                    <SelectItem value="6-7 times per week">6-7 times per week</SelectItem>
                     <SelectItem value="daily">Daily</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              
+
+              {/* New: Fitness Level */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">Timeframe</Label>
-                <Select onValueChange={(value) => setGoals({...goals, timeframe: value})}>
+                <Label className="text-sm font-medium text-gray-700">Your Current Fitness Level</Label>
+                <Select onValueChange={(value) => setGoals({...goals, fitnessLevel: value})} value={goals.fitnessLevel}>
                   <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-purple-500">
-                    <SelectValue placeholder="When do you want to achieve this?" />
+                    <SelectValue placeholder="Select your level" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1-month">1 Month</SelectItem>
-                    <SelectItem value="3-months">3 Months</SelectItem>
-                    <SelectItem value="6-months">6 Months</SelectItem>
-                    <SelectItem value="1-year">1 Year</SelectItem>
-                    <SelectItem value="long-term">Long-term (1+ years)</SelectItem>
+                    <SelectItem value="beginner">Beginner</SelectItem>
+                    <SelectItem value="intermediate">Intermediate</SelectItem>
+                    <SelectItem value="advanced">Advanced</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <HardHat className="w-4 h-4" /> {/* Icon for equipment */}
+                  Available Equipment
+                </Label>
+                <Select onValueChange={(value) => setGoals({...goals, availableEquipment: value})} value={goals.availableEquipment}>
+                  <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-purple-500">
+                    <SelectValue placeholder="What equipment do you have access to?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="full gym">Full Gym</SelectItem>
+                    <SelectItem value="home gym (basic)">Home Gym (basic weights, bands)</SelectItem>
+                    <SelectItem value="bodyweight only">Bodyweight Only</SelectItem>
+                    <SelectItem value="specific equipment (e.g., dumbbells)">Specific Equipment (e.g., dumbbells, kettlebells)</SelectItem>
+                    <SelectItem value="outdoor (running/cycling)">Outdoor (running/cycling)</SelectItem>
+                    <SelectItem value="mixed (gym & home)">Mixed (Gym & Home)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">Timeframe</Label>
+              <Select onValueChange={(value) => setGoals({...goals, timeframe: value})} value={goals.timeframe}>
+                <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-purple-500">
+                  <SelectValue placeholder="When do you want to achieve this?" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1 month">1 Month</SelectItem>
+                  <SelectItem value="3 months">3 Months</SelectItem>
+                  <SelectItem value="6 months">6 Months</SelectItem>
+                  <SelectItem value="1 year">1 Year</SelectItem>
+                  <SelectItem value="long-term (1+ years)">Long-term (1+ years)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-4">
@@ -154,14 +199,14 @@ const GoalsForm = ({ onComplete }: { onComplete: (goals: Goals | null) => void }
             </div>
 
             <div className="flex gap-4">
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="flex-1 h-12 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-xl transition-all duration-300 hover:scale-105"
               >
                 Generate My Workout Plan
               </Button>
-              
-              <Button 
+
+              <Button
                 type="button"
                 onClick={handleSkip}
                 variant="outline"
