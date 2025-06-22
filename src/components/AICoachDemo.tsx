@@ -134,16 +134,24 @@ type goodMorningAnalysis = {
 const PageLayout = styled.div`
   display: flex;
   align-items: flex-start;
-  padding: 20px;
-  gap: 24px;
+  padding: 40px;
+  gap: 40px;
+  font-family: 'Poppins', sans-serif;
+  background-color: #f9f9f9;
+  min-height: 100vh;
 `;
 const CameraWrapper = styled.div`
-  flex: 0 0 600px;
+  flex: 0 0 640px;
   position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  background-color: #000;
 `;
 const WebcamVideo = styled.video`
   width: 100%;
-  border-radius: 10px;
+  height: auto;
+  object-fit: cover;
 `;
 const WebcamCanvas = styled.canvas`
   position: absolute;
@@ -157,17 +165,35 @@ const WebcamCanvas = styled.canvas`
 const ControlPanel = styled.div`
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  gap: 15px;
+  gap: 30px;
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 30px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  max-width: 400px;
+  min-width: 300px;
 `;
 const Label = styled.label`
-  font-weight: bold;
+  font-size: 1.1rem;
+  font-weight: 600;
   margin-bottom: 8px;
 `;
 const Select = styled.select`
-  padding: 8px 14px;
-  font-size: 16px;
-  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 1rem;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background-color: #fdfdfd;
+  transition: border 0.2s;
+
+  &:hover {
+    border-color: #888;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #4caf50;
+  }
 `;
 const AngleDisplayContainer = styled.div`
   display: flex;
@@ -177,29 +203,37 @@ const AngleDisplayContainer = styled.div`
   font-size: 1.2em;
 `;
 const AngleItem = styled.div`
-  background-color: #f0f0f0;
-  padding: 10px 15px;
-  border-radius: 8px;
+  background: linear-gradient(135deg, #ffffff, #f5f5f5);
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  width: 300px;
+  gap: 10px;
+  width: 100%;
+  max-width: 360px;
+  transition: transform 0.2s;
+
+  &:hover {
+    transform: translateY(-3px);
+  }
 `;
 const AngleLabelValue = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  font-weight: bold;
+  font-weight: 600;
+  font-size: 1rem;
 `;
 const FeedbackText = styled.div`
-  font-size: 0.9em;
-  color: #333;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #444;
   min-height: 1.2em;
 `;
 const FeedbackBarWrapper = styled.div`
   width: 100%;
-  height: 20px;
-  background: #ccc;
+  height: 14px;
+  background: #eee;
   border-radius: 10px;
   position: relative;
   overflow: hidden;
@@ -213,11 +247,12 @@ const FeedbackBarFill = styled.div<FeedbackBarFillProps>`
   top: 0;
   left: ${({ $position }) => `${$position * 100}%`};
   transform: translateX(-50%);
-  width: 10px;
+  width: 12px;
   height: 100%;
   background-color: ${({ $color }) => $color};
-  border-radius: 10px;
-  transition: left 0.2s ease-out;
+  border-radius: 50%;
+  box-shadow: 0 0 8px ${({ $color }) => $color};
+  transition: left 0.2s ease-in-out;
 `;
 const FeedbackBarIdealLine = styled.div`
   position: absolute;
@@ -225,7 +260,7 @@ const FeedbackBarIdealLine = styled.div`
   top: 0;
   width: 2px;
   height: 100%;
-  background-color: #4CAF50;
+  background-color: #4caf50;
   z-index: 1;
 `;
 
