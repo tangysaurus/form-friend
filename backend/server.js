@@ -1,4 +1,5 @@
 // server.js
+// This file sets up a Node.js backend server using Express to interact with the Google Gemini API for generating personalized workout plans.
 import express from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';

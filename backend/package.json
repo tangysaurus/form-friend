@@ -1,7 +1,8 @@
+// This is the package.json file for the backend server of the AI Fitness Coach application.
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "Backend server for AI Fitness Coach",
+  "description": "Backend server for our AI Fitness Coach",
   "main": "server.js",
   "type": "module",
   "scripts": {
