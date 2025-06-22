@@ -73,7 +73,7 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
             setLoading(true);
             setError(null);
             try {
-                const response = await fetch('http://localhost:5000/generate-workout', {
+                const response = await fetch('https://form-friend-fitness-ai.onrender.com/generate-workout', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
