@@ -1,4 +1,4 @@
-// WorkoutPlan.tsx (Rewritten with Vapi Integration and Fix)
+// WorkoutPlan.tsx
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +6,7 @@ import { CheckCircle, Clock, Flame, Trophy, Camera, PlayCircle, Loader, XCircle 
 import { useState, useEffect, useRef } from 'react';
 import Vapi from '@vapi-ai/web';
 
-// --- Interfaces remain the same ---
+// --- Interfaces (original, plus the onStartWorkout prop) ---
 interface WorkoutPlanItem {
     day: string;
     focus: string;
@@ -31,6 +31,7 @@ interface WorkoutPlanProps {
         fitnessLevel?: string;
         availableEquipment?: string;
     };
+    // This prop will now be used by App.tsx to navigate to AICoachDemo.tsx
     onStartWorkout: () => void;
 }
 
@@ -40,19 +41,17 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // --- NEW VAPI-RELATED STATE ---
+    // --- VAPI-RELATED STATE ---
     const vapi = useRef<Vapi | null>(null);
     const [isVapiReady, setIsVapiReady] = useState(false);
     const [isVapiSpeaking, setIsVapiSpeaking] = useState(false);
 
     const hasUserData = healthStats && Object.keys(healthStats).length > 0 && goals && Object.keys(goals).length > 0;
 
-    // --- VAPI INITIALIZATION (CORRECTED) ---
+    // --- VAPI INITIALIZATION ---
     useEffect(() => {
-        // Access the variable using Vite's import.meta.env syntax
         const vapiPublicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
 
-        // Only initialize Vapi if the key exists and is not a placeholder
         if (vapiPublicKey && vapiPublicKey !== 'YOUR_VAPI_PUBLIC_KEY') {
             const vapiInstance = new Vapi(vapiPublicKey);
             vapi.current = vapiInstance;
@@ -61,11 +60,7 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
                 console.log('Vapi call has started.');
                 setIsVapiSpeaking(true);
             });
-
-            // --- FIX APPLIED ---
-            // The 'speech-end' event listener that was prematurely stopping the call has been removed.
-            // Vapi will now automatically end the call after the assistant is done speaking.
-
+            
             vapi.current.on('call-end', () => {
                 console.log('Vapi call has ended.');
                 setIsVapiSpeaking(false);
@@ -78,25 +73,34 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
 
             setIsVapiReady(true);
         } else {
-            console.warn("VITE_VAPI_PUBLIC_KEY not found in .env.local. Audio intro feature will be disabled.");
+            console.warn("VITE_VAPI_PUBLIC_KEY not found. Audio intro feature will be disabled.");
             setIsVapiReady(false);
         }
 
-        // Cleanup function
         return () => {
             vapi.current?.stop();
         };
     }, []);
 
 
-    // --- Existing workout plan fetching logic (no changes needed) ---
+    // --- MODIFIED: WORKOUT PLAN FETCHING LOGIC WITH LOCALSTORAGE ---
     useEffect(() => {
         const fetchWorkoutPlan = async () => {
-            if (!hasUserData) {
-                // Default plan
-                setWorkoutPlan([{ day: "Day 1", focus: "Upper Body", exercises: ["Push-ups", "Pull-ups", "Shoulder Press", "Tricep Dips"], duration: "45 min", difficulty: "Intermediate" }, { day: "Day 2", focus: "Lower Body", exercises: ["Squats", "Lunges", "Deadlifts", "Calf Raises"], duration: "50 min", difficulty: "Intermediate" }, { day: "Day 3", focus: "Core & Cardio", exercises: ["Planks", "Russian Twists", "Mountain Climbers", "Burpees"], duration: "40 min", difficulty: "Beginner" }]);
+            const savedPlanJson = localStorage.getItem('workoutPlan');
+
+            if (savedPlanJson) {
+                console.log("Found saved workout plan in localStorage.");
+                setWorkoutPlan(JSON.parse(savedPlanJson));
                 return;
             }
+            
+            console.log("No saved plan found. Generating a new one.");
+            if (!hasUserData) {
+                const defaultPlan = [{ day: "Day 1", focus: "Upper Body", exercises: ["Push-ups", "Pull-ups", "Shoulder Press", "Tricep Dips"], duration: "45 min", difficulty: "Intermediate" }, { day: "Day 2", focus: "Lower Body", exercises: ["Squats", "Lunges", "Deadlifts", "Calf Raises"], duration: "50 min", difficulty: "Intermediate" }, { day: "Day 3", focus: "Core & Cardio", exercises: ["Planks", "Russian Twists", "Mountain Climbers", "Burpees"], duration: "40 min", difficulty: "Beginner" }];
+                setWorkoutPlan(defaultPlan);
+                return;
+            }
+
             setLoading(true);
             setError(null);
             try {
@@ -109,10 +113,13 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
                 }
                 const data: WorkoutPlanItem[] = await response.json();
                 setWorkoutPlan(data);
+
+                localStorage.setItem('workoutPlan', JSON.stringify(data));
+                console.log("New workout plan saved to localStorage.");
+
             } catch (err: any) {
                 console.error("Error fetching workout plan:", err);
                 setError(err.message || "Failed to generate workout plan. Please try again.");
-                // Fallback plan
                 setWorkoutPlan([{ day: "Day 1", focus: "Upper Body", exercises: ["Push-ups", "Pull-ups", "Shoulder Press", "Tricep Dips"], duration: "45 min", difficulty: "Intermediate" }, { day: "Day 2", focus: "Lower Body", exercises: ["Squats", "Lunges", "Deadlifts", "Calf Raises"], duration: "50 min", difficulty: "Intermediate" }, { day: "Day 3", focus: "Core & Cardio", exercises: ["Planks", "Russian Twists", "Mountain Climbers", "Burpees"], duration: "40 min", difficulty: "Beginner" }]);
             } finally {
                 setLoading(false);
@@ -126,12 +133,10 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
         if (!vapi.current || isVapiSpeaking) return;
 
         const hasUserDetails = hasUserData && healthStats.name && goals.primaryGoal;
-
         const name = healthStats.name || 'there';
         const goal = goals.primaryGoal?.replace('-', ' ') || 'improving your general fitness';
         const level = goals.fitnessLevel || 'your current';
 
-        // Construct a more detailed and welcoming message
         const message = hasUserDetails
             ? `Hi ${name}, I'm your personal AI trainer, Jackie! Welcome to your custom workout plan. Based on your primary goal of ${goal}, and your ${level} fitness level, we're going to have a great session focused on making you stronger and healthier. I'll be right here to guide you. Let's get started!`
             : "Hi there! I'm your personal AI trainer, Jackie. Welcome to your workout! This plan is designed to give you a fantastic full-body session. I'll be here to guide you on your form. Let's get moving and crush this workout together!";
@@ -142,39 +147,21 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
             return;
         }
 
-        console.log("Starting Vapi call with Assistant ID:", assistantId);
-
-        vapi.current.start(
-            assistantId,
-            {
-                firstMessage: message
-            }
-        );
+        vapi.current.start(assistantId, { firstMessage: message });
     };
 
-    // --- Render a dynamic button based on Vapi's state ---
     const renderVapiButton = () => {
         if (!hasUserData) return null;
-
         if (isVapiSpeaking) {
             return (
-                <Button
-                    onClick={() => vapi.current?.stop()}
-                    variant="destructive"
-                    className="mt-6 font-semibold px-6 py-3 rounded-full text-lg shadow-lg"
-                >
+                <Button onClick={() => vapi.current?.stop()} variant="destructive" className="mt-6 font-semibold px-6 py-3 rounded-full text-lg shadow-lg">
                     <XCircle className="w-5 h-5 mr-2" />
                     Stop Intro
                 </Button>
             );
         }
-
         return (
-            <Button
-                onClick={handlePlayIntro}
-                disabled={!isVapiReady || loading}
-                className="mt-6 bg-gradient-to-r from-green-500 to-teal-600 text-white font-semibold px-6 py-3 rounded-full text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-            >
+            <Button onClick={handlePlayIntro} disabled={!isVapiReady || loading} className="mt-6 bg-gradient-to-r from-green-500 to-teal-600 text-white font-semibold px-6 py-3 rounded-full text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                 {isVapiReady ? <PlayCircle className="w-5 h-5 mr-2" /> : <Loader className="w-5 h-5 mr-2 animate-spin" />}
                 Play Audio Intro
             </Button>
@@ -197,8 +184,6 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
                             : "A general workout plan to get you started - customize it anytime by adding your profile"
                         }
                     </p>
-
-                    {/* NEW DYNAMIC VAPI BUTTON */}
                     {renderVapiButton()}
                 </div>
 
@@ -237,6 +222,7 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
                         <Camera className="w-12 h-12 mx-auto mb-4" />
                         <h2 className="text-3xl font-bold mb-4">Ready to Start with AI Form Coach?</h2>
                         <p className="text-xl mb-6 opacity-90"> Your AI coach will watch your form in real-time and provide instant feedback to perfect your technique </p>
+                        {/* This button now calls the prop from App.tsx */}
                         <Button onClick={onStartWorkout} size="lg" className="bg-white text-indigo-600 hover:bg-gray-100 font-semibold px-8 py-4 rounded-full text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105" >
                             <Camera className="w-5 h-5 mr-2" />
                             Start AI-Guided Workout
