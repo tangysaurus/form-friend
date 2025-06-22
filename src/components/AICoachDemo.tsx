@@ -40,29 +40,42 @@ const AICoachDemo = ({ onBack }: { onBack: () => void }) => {
         }
 
         streamRef.current = stream;
+        console.log("Camera stream obtained");
         
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          console.log("Video element src set");
           
-          // Wait for video to be ready before setting cameraReady
-          const handleVideoReady = () => {
-            console.log("Video stream ready");
+          // Set a timeout to ensure camera is ready after a short delay
+          setTimeout(() => {
+            if (mounted && videoRef.current && videoRef.current.readyState >= 2) {
+              console.log("Camera ready - video has enough data");
+              setCameraReady(true);
+              setCameraError(null);
+            } else if (mounted) {
+              console.log("Setting camera ready after timeout");
+              setCameraReady(true);
+              setCameraError(null);
+            }
+          }, 1000);
+
+          // Also try the standard approach
+          const handleCanPlay = () => {
+            console.log("Video can play event fired");
             if (mounted) {
               setCameraReady(true);
               setCameraError(null);
             }
           };
 
-          // Listen for when video metadata is loaded
-          videoRef.current.addEventListener('loadedmetadata', handleVideoReady);
-          videoRef.current.addEventListener('canplay', handleVideoReady);
+          videoRef.current.addEventListener('canplay', handleCanPlay);
+          videoRef.current.addEventListener('loadeddata', handleCanPlay);
           
-          // Try to play the video
-          videoRef.current.play().catch(error => {
+          // Start playing the video
+          videoRef.current.play().then(() => {
+            console.log("Video started playing");
+          }).catch(error => {
             console.error("Video play error:", error);
-            if (mounted) {
-              setCameraError("Unable to start video playback");
-            }
           });
         }
       } catch (error) {
