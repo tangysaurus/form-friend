@@ -1,4 +1,4 @@
-// WorkoutPlan.tsx (Rewritten with Vapi Integration)
+// WorkoutPlan.tsx (Rewritten with Vapi Integration and Fix)
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +17,7 @@ interface WorkoutPlanItem {
 
 interface WorkoutPlanProps {
     healthStats: {
-        name?: string; // Ensure name is part of the type
+        name?: string;
         age?: number;
         gender?: string;
         weight?: number;
@@ -47,7 +47,7 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
 
     const hasUserData = healthStats && Object.keys(healthStats).length > 0 && goals && Object.keys(goals).length > 0;
 
-    // --- VAPI INITIALIZATION (CORRECTED FOR VITE) ---
+    // --- VAPI INITIALIZATION (CORRECTED) ---
     useEffect(() => {
         // Access the variable using Vite's import.meta.env syntax
         const vapiPublicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY;
@@ -61,14 +61,16 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
                 console.log('Vapi call has started.');
                 setIsVapiSpeaking(true);
             });
-            vapi.current.on('speech-end', () => {
-                console.log('AI speech has ended. Stopping call.');
-                vapi.current?.stop();
-            });
+
+            // --- FIX APPLIED ---
+            // The 'speech-end' event listener that was prematurely stopping the call has been removed.
+            // Vapi will now automatically end the call after the assistant is done speaking.
+
             vapi.current.on('call-end', () => {
                 console.log('Vapi call has ended.');
                 setIsVapiSpeaking(false);
             });
+
             vapi.current.on('error', (e) => {
                 console.error('Vapi error:', e);
                 setIsVapiSpeaking(false);
@@ -119,17 +121,20 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
         fetchWorkoutPlan();
     }, [healthStats, goals, hasUserData]);
 
-    // In WorkoutPlan.tsx
-
-    // In WorkoutPlan.tsx
 
     const handlePlayIntro = () => {
-        if (!vapi.current || !hasUserData || isVapiSpeaking) return;
+        if (!vapi.current || isVapiSpeaking) return;
+
+        const hasUserDetails = hasUserData && healthStats.name && goals.primaryGoal;
 
         const name = healthStats.name || 'there';
-        const goal = goals.primaryGoal?.replace('-', ' ') || 'general fitness';
-        const level = goals.fitnessLevel || 'your';
-        const message = `Hi ${name}, I'm your personal AI trainer, Jackie! Welcome to your custom workout plan. Based on your primary goal of ${goal}, and your current fitness level of ${level}, we will be focusing on making you stronger and healthier. Let's get started!`;
+        const goal = goals.primaryGoal?.replace('-', ' ') || 'improving your general fitness';
+        const level = goals.fitnessLevel || 'your current';
+
+        // Construct a more detailed and welcoming message
+        const message = hasUserDetails
+            ? `Hi ${name}, I'm your personal AI trainer, Jackie! Welcome to your custom workout plan. Based on your primary goal of ${goal}, and your ${level} fitness level, we're going to have a great session focused on making you stronger and healthier. I'll be right here to guide you. Let's get started!`
+            : "Hi there! I'm your personal AI trainer, Jackie. Welcome to your workout! This plan is designed to give you a fantastic full-body session. I'll be here to guide you on your form. Let's get moving and crush this workout together!";
 
         const assistantId = import.meta.env.VITE_VAPI_ASSISTANT_ID;
         if (!assistantId) {
@@ -139,9 +144,6 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
 
         console.log("Starting Vapi call with Assistant ID:", assistantId);
 
-        // FINAL CORRECTED STRUCTURE
-        // The second argument is an `AssistantOverrides` object.
-        // `firstMessage` is a direct property of that object.
         vapi.current.start(
             assistantId,
             {
@@ -183,7 +185,6 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
         <div className="min-h-screen bg-gradient-to-br from-green-50 to-teal-50 p-6">
             <div className="max-w-6xl mx-auto">
                 <div className="text-center mb-12">
-                    {/* ...Trophy icon... */}
                     <div className="mx-auto w-16 h-16 bg-gradient-to-r from-green-500 to-teal-600 rounded-full flex items-center justify-center mb-6">
                         <Trophy className="w-8 h-8 text-white" />
                     </div>
@@ -201,11 +202,6 @@ const WorkoutPlan = ({ healthStats, goals, onStartWorkout }: WorkoutPlanProps) =
                     {renderVapiButton()}
                 </div>
 
-                {/* --- Rest of the JSX is IDENTICAL to your original file --- */}
-                {/* ...Summary Cards... */}
-                {/* ...Loading and Error states... */}
-                {/* ...Workout Plan grid... */}
-                {/* ...AI Coach Feature card... */}
                 {hasUserData && (
                     <div className="grid md:grid-cols-3 gap-6 mb-12">
                         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
