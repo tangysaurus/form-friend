@@ -337,7 +337,6 @@ const AICoachDemo = () => {
             torsoBarData,
             hipBarData,
           });
-          setSquatMetrics(null);
       } else {
         setSitupMetrics(null);
         setSquatMetrics(null);
